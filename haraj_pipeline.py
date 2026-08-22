@@ -786,6 +786,12 @@ def run(
                 if aid_str in seller_map:
                     rec.update(seller_map[aid_str])
 
+            ad_id = str(rec.get("id") or "unknown")
+            image_urls = rec.get("imagesList", [])
+
+            # rec["image_r2_paths"] = download_images(image_urls, ad_id, meta["r2_path"], dt=dt)
+            # rec.pop("imagesList", None)
+
         groups[(meta["r2_path"], meta["file_key"])][meta["sheet_name"]].extend(records)
 
         if i < total:
