@@ -23,10 +23,15 @@ Grouping rules
 - A category with no level_1 at all (leaf right at the top tag) becomes
   its own flat folder "<cat_name>/" with one file, one sheet.
 
+Real Estate Special Mode (cat-name=Real_Estate):
+  Reads real_estate_city_urls.csv or generates city+subcat combinations.
+  Produces one file per sub-category, with sheets named after cities.
+
 Usage:
     python haraj_pipeline.py --categories haraj_all_categories.csv
-    python haraj_pipeline.py --cat-name Cars --max-pages 3   # quick test
-    python haraj_pipeline.py --cat-name Cars --limit-rows 5  # even smaller test
+    python haraj_pipeline.py --cat-name Cars --max-pages 3
+    python haraj_pipeline.py --cat-name Cars --limit-rows 5
+    python haraj_pipeline.py --cat-name Real_Estate --max-pages 3
 """
 
 import argparse
@@ -55,27 +60,50 @@ BASE_URL = "https://graphql.haraj.com.sa/"
 CLIENT_ID = "mVaYf0dJ-lh8g-XZhw-s1Xg-ssMJAOwsMTf7v3"
 LANG = "en"
 
-MIN_REQUEST_DELAY = 1.0      
-MAX_REQUEST_DELAY = 2.0      
-MIN_LEAF_DELAY = 3.0         
-MAX_LEAF_DELAY = 5.0         
-MIN_IMAGE_DELAY = 0.3       
-MAX_IMAGE_DELAY = 0.7       
+MIN_REQUEST_DELAY = 1.0
+MAX_REQUEST_DELAY = 2.0
+MIN_LEAF_DELAY = 3.0
+MAX_LEAF_DELAY = 5.0
+MIN_IMAGE_DELAY = 0.3
+MAX_IMAGE_DELAY = 0.7
 
 MAX_RETRIES = 3
 RETRY_DELAY = 10
 IMAGE_TIMEOUT = 20
 
-
 Riyadh_now = datetime.now(ZoneInfo("Asia/Riyadh"))
 TARGET_DATE = (Riyadh_now.date() - timedelta(days=1))
 
-# Level-1 names under "Cars" that are NOT car brands -- these keep their
-# own folder instead of being merged into Cars_for_sale_rent.
+# Level-1 names under "Cars" that are NOT car brands
 NON_BRAND_CAR_LEVEL1 = {
     "Parts & Accessories",
     "Trucks and heavy equipment",
     "Motorcycles",
+}
+
+# Cities for Real Estate scraping
+CITIES = {
+    "Riyadh": "الرياض",
+    "Eastern Region": "المنطقة الشرقية",
+    "Jeddah": "جدة",
+    "Makkah": "مكة",
+    "Yanbu": "ينبع",
+    "Hafar Al Batin": "حفر الباطن",
+    "Madinah": "المدينة",
+    "Taif": "الطائف",
+    "Tabouk": "تبوك",
+    "Qassim": "القصيم",
+    "Hail": "حائل",
+    "Abha": "أبها",
+    "Aseer": "عسير",
+    "Bahah": "الباحة",
+    "Jazan": "جازان",
+    "Najran": "نجران",
+    "Jouf": "الجوف",
+    "Arar": "عرعر",
+    "Kuwait": "الكويت",
+    "UAE": "الإمارات",
+    "Bahrain": "البحرين",
 }
 
 HEADERS = {
@@ -168,8 +196,8 @@ query Profile($profileId: ID!) {
 }
 """
 
-MIN_SELLER_DELAY = 0.1      
-MAX_SELLER_DELAY = 0.2      
+MIN_SELLER_DELAY = 0.1
+MAX_SELLER_DELAY = 0.2
 
 # ============================================================
 # TEXT HELPERS
@@ -269,14 +297,14 @@ def download_images(image_urls: list[str], ad_id: str, r2_path: str, dt: datetim
         except Exception as e:
             print(f"      [ERROR] image {idx} ({ad_id}): {e}")
             tracker.log_request(source="images", success=False)
- 
+
         if idx < len(image_urls):
             time.sleep(random.uniform(MIN_IMAGE_DELAY, MAX_IMAGE_DELAY))
     return r2_paths
 
 
 # ============================================================
-# GRAPHQL SCRAPING (generalized from try_toyota.py)
+# GRAPHQL SCRAPING
 # ============================================================
 
 def fetch_page(tag: str, page: int, before_update_date: int | None = None) -> tuple[list, bool, int | None]:
@@ -285,15 +313,14 @@ def fetch_page(tag: str, page: int, before_update_date: int | None = None) -> tu
         "lang": LANG,
         "clientId": CLIENT_ID,
     }
-    
     variables = {
         "tag": tag,
         "page": page,
-        "orderMainByPostId": True,  # ← جديد: نرتب حسب postDate
+        "orderMainByPostId": True,
     }
     if before_update_date is not None:
         variables["beforeUpdateDate"] = before_update_date
-    
+
     payload = {"query": QUERY, "variables": variables}
 
     for attempt in range(1, MAX_RETRIES + 1):
@@ -311,7 +338,7 @@ def fetch_page(tag: str, page: int, before_update_date: int | None = None) -> tu
             items = posts_data.get("items", [])
             has_next = posts_data.get("pageInfo", {}).get("hasNextPage", False)
             tracker.log_request(source="listing_pages", success=True)
-            
+
             last_update_date = items[-1].get("updateDate") if items else None
             return items, has_next, last_update_date
 
@@ -330,11 +357,9 @@ def fetch_page(tag: str, page: int, before_update_date: int | None = None) -> tu
 
     return [], False, None
 
+
 def convert_timestamp_columns(df: pd.DataFrame) -> pd.DataFrame:
-    timestamp_columns = [
-        "postDate",
-        "updateDate",
-    ]
+    timestamp_columns = ["postDate", "updateDate"]
     df = df.copy()
     for col in timestamp_columns:
         if col in df.columns:
@@ -348,10 +373,9 @@ def convert_timestamp_columns(df: pd.DataFrame) -> pd.DataFrame:
                 .dt.tz_convert("Asia/Riyadh")
                 .dt.strftime("%Y-%m-%d %H:%M:%S")
             )
-
             print(f"  Converted timestamp column: {col}")
-
     return df
+
 
 def filter_yesterday_hits(hits):
     filtered = []
@@ -367,6 +391,54 @@ def filter_yesterday_hits(hits):
         except (ValueError, TypeError):
             pass
     return filtered
+
+
+def scrape_tag(tag: str, max_pages: int | None = None) -> list[dict]:
+    all_posts = []
+    seen_ids = set()
+    page = 0
+    before_update_date = None
+    consecutive_empty = 0
+
+    while True:
+        if max_pages is not None and page >= max_pages:
+            print(f"    Reached page limit: {max_pages}")
+            break
+
+        items, has_next, last_update_date = fetch_page(tag, page, before_update_date)
+        if not items:
+            break
+
+        new_items = 0
+        for post in items:
+            post_id = post.get("id")
+            if post_id in seen_ids:
+                continue
+            seen_ids.add(post_id)
+            all_posts.append(build_post_row(post))
+            new_items += 1
+
+        print(f"    page {page}: {len(items)} returned, {new_items} new (total {len(all_posts)})")
+
+        if not has_next:
+            break
+
+        if new_items == 0:
+            consecutive_empty += 1
+            if consecutive_empty >= 3:
+                print(f"    Stopping: {consecutive_empty} consecutive empty pages")
+                break
+        else:
+            consecutive_empty = 0
+
+        if last_update_date is not None:
+            before_update_date = last_update_date
+
+        page += 1
+        delay = random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY)
+        time.sleep(delay)
+
+    return all_posts
 
 
 # ============================================================
@@ -435,10 +507,10 @@ def fetch_sellers_for_records(records: list[dict]) -> dict[str, dict]:
         aid = rec.get("authorId")
         if aid is not None:
             unique_ids.add(str(aid).strip())
-    
+
     if not unique_ids:
         return {}
-    
+
     sellers = {}
     print(f"  Unique sellers to fetch: {len(unique_ids)}")
     for idx, author_id in enumerate(sorted(unique_ids), 1):
@@ -450,58 +522,8 @@ def fetch_sellers_for_records(records: list[dict]) -> dict[str, dict]:
     return sellers
 
 
-def scrape_tag(tag: str, max_pages: int | None = None) -> list[dict]:
-    all_posts = []
-    seen_ids = set()
-    page = 0
-    before_update_date = None
-    consecutive_empty = 0
-
-    while True:
-        if max_pages is not None and page >= max_pages:
-            print(f"    Reached page limit: {max_pages}")
-            break
-
-        items, has_next, last_update_date = fetch_page(tag, page, before_update_date)
-        if not items:
-            break
-
-        new_items = 0
-        for post in items:
-            post_id = post.get("id")
-            if post_id in seen_ids:
-                continue
-            seen_ids.add(post_id)
-            all_posts.append(build_post_row(post))
-            new_items += 1
-
-        print(f"    page {page}: {len(items)} returned, {new_items} new (total {len(all_posts)})")
-
-        if not has_next:
-            break
-
-        # ← جديد: لو 3 صفحات ورا بعض مفيش جديد، نوقف (API limit ~1000)
-        if new_items == 0:
-            consecutive_empty += 1
-            if consecutive_empty >= 3:
-                print(f"    Stopping: {consecutive_empty} consecutive empty pages")
-                break
-        else:
-            consecutive_empty = 0
-
-        # ← Cursor: نبعت آخر updateDate في الصفحة الجاية
-        if last_update_date is not None:
-            before_update_date = last_update_date
-
-        page += 1
-        delay = random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY)
-        time.sleep(delay)
-
-    return all_posts
-
-
 # ============================================================
-# CATEGORY CLASSIFICATION -> (scrape_tag, r2_path, file_key, sheet_name)
+# CATEGORY CLASSIFICATION
 # ============================================================
 
 def classify_row(row: dict) -> dict:
@@ -525,7 +547,7 @@ def classify_row(row: dict) -> dict:
             r2_path = f"Cars/{l1_name}"
             file_key = l1_name
             sheet_name = l2_name if has_l2 else l1_name
-        elif has_l1:  # a brand
+        elif has_l1:
             r2_path = "Cars/Cars_for_sale_rent"
             file_key = l1_name
             sheet_name = l2_name if has_l2 else l1_name
@@ -552,10 +574,10 @@ def classify_row(row: dict) -> dict:
 
 
 # ============================================================
-# UPLOAD ONE GROUP (excel + json, all its sheets)
+# UPLOAD ONE GROUP
 # ============================================================
 
-def upload_group(r2_path: str, file_key: str, sheets: dict[str, list], dt: datetime) -> None:
+def upload_group(r2_path: str, file_key: str, sheets: dict[str, list], dt: datetime) -> int:
     total_ads = sum(len(rows) for rows in sheets.values())
     print(f"\n{r2_path} / {file_key}: {len(sheets)} sheet(s), {total_ads} ad(s)")
     for name, rows in sheets.items():
@@ -563,7 +585,7 @@ def upload_group(r2_path: str, file_key: str, sheets: dict[str, list], dt: datet
 
     if total_ads == 0:
         print("  (nothing to upload)")
-        return
+        return 0
 
     excel_buf = io.BytesIO()
     used_names = set()
@@ -593,6 +615,94 @@ def upload_group(r2_path: str, file_key: str, sheets: dict[str, list], dt: datet
         file_type="json", content_type="application/json", dt=dt,
     )
     print(f"  JSON  -> {json_key}")
+    return total_ads
+
+
+# ============================================================
+# REAL ESTATE CITY MODE
+# ============================================================
+
+def run_real_estate(
+    categories_csv: str,
+    max_pages: int | None = None,
+    limit_rows: int | None = None,
+    dt: datetime | None = None,
+) -> int:
+    """Scrape Real Estate for all cities. Returns total ad count."""
+    dt = dt or datetime.now()
+
+    df = pd.read_csv(categories_csv, encoding="utf-8-sig")
+    df = df[df["cat_name"] == "Real_Estate"].copy()
+    if limit_rows:
+        df = df.head(limit_rows)
+
+    rows = df.to_dict("records")
+    total_combinations = len(rows) * len(CITIES)
+    print(f"Real Estate: {len(rows)} sub-categories × {len(CITIES)} cities = {total_combinations} combinations")
+
+    # groups[(r2_path, file_key)][sheet_name] -> list of ad records
+    # file per sub-category, sheet per city
+    groups: dict[tuple, dict] = defaultdict(lambda: defaultdict(list))
+    total_ads_all = 0
+    counter = 0
+
+    for row in rows:
+        sub_category = row.get("level_1_name") or "Real_Estate"
+        sub_cat_tag = row.get("level_1_tag_name") or row["cat_tag_name"]
+
+        for city_en, city_ar in CITIES.items():
+            counter += 1
+            tag_to_scrape = f"{city_ar}_{sub_cat_tag}"
+
+            print("\n" + "#" * 80)
+            print(f"[{counter}/{total_combinations}] {sub_category} > {city_en} (tag=\'{tag_to_scrape}\')")
+            print("#" * 80)
+
+            records = scrape_tag(tag_to_scrape, max_pages=max_pages)
+            before_filter = len(records)
+            records = filter_yesterday_hits(records)
+            print(f"  Date filter: {before_filter} -> {len(records)} ads (postDate = {TARGET_DATE})")
+
+            if records:
+                records_df = pd.DataFrame(records)
+                records_df = convert_timestamp_columns(records_df)
+                records = records_df.to_dict("records")
+
+            seller_map = fetch_sellers_for_records(records)
+            print(f"  Seller profiles fetched: {len(seller_map)}")
+
+            for rec in records:
+                rec["city_en"] = city_en
+                rec["city_ar"] = city_ar
+                rec["sub_category"] = sub_category
+
+                aid = rec.get("authorId")
+                if aid is not None:
+                    aid_str = str(aid).strip()
+                    if aid_str in seller_map:
+                        rec.update(seller_map[aid_str])
+
+            r2_path = f"Real_Estate/{sub_category}"
+            file_key = sub_category
+            sheet_name = city_en
+
+            groups[(r2_path, file_key)][sheet_name].extend(records)
+            total_ads_all += len(records)
+
+            if counter < total_combinations:
+                delay = random.uniform(MIN_LEAF_DELAY, MAX_LEAF_DELAY)
+                print(f"  Waiting {delay:.1f}s before next combination...")
+                time.sleep(delay)
+
+    print("\n" + "=" * 80)
+    print(f"SCRAPING DONE -- uploading {len(groups)} file(s)")
+    print("=" * 80)
+
+    uploaded_ads = 0
+    for (r2_path, file_key), sheets in groups.items():
+        uploaded_ads += upload_group(r2_path, file_key, sheets, dt=dt)
+
+    return total_ads_all
 
 
 # ============================================================
@@ -610,6 +720,26 @@ def run(
     set_upload_target(upload_target)
     dt = dt or datetime.now()
 
+    # Real Estate special mode
+    if cat_name_filter == "Real_Estate":
+        total_ads = run_real_estate(
+            categories_csv=categories_csv,
+            max_pages=max_pages,
+            limit_rows=limit_rows,
+            dt=dt,
+        )
+        print("\n" + "=" * 80)
+        print(f"TOTAL REAL ESTATE ADS COLLECTED: {total_ads}")
+        print("=" * 80)
+
+        stats_file = "request_stats_Real_Estate.json"
+        stats = tracker.save(stats_file)
+        print(f"\n--- Request Stats -> {stats_file} ---")
+        print(f"Total: {stats['total_requests']} req | {stats['total_req_per_min']} req/min")
+        print(f"By source: {stats['per_source']}")
+        return
+
+    # Normal mode (original logic)
     df = pd.read_csv(categories_csv, encoding="utf-8-sig")
     if cat_name_filter:
         df = df[df["cat_name"] == cat_name_filter]
@@ -620,7 +750,6 @@ def run(
     total = len(rows)
     print(f"Leaf categories to scrape: {total}" + (f" (cat={cat_name_filter})" if cat_name_filter else ""))
 
-    # groups[(r2_path, file_key)][sheet_name] -> list of ad records
     groups: dict[tuple, dict] = defaultdict(lambda: defaultdict(list))
 
     for i, row in enumerate(rows, 1):
@@ -628,28 +757,21 @@ def run(
         print("\n" + "#" * 80)
         print(
             f"[{i}/{total}] {row['cat_name']} > {row.get('level_1_name')} > {row.get('level_2_name')} "
-            f"(tag='{meta['scrape_tag']}')"
+            f"(tag=\'{meta['scrape_tag']}\')"
         )
         print(f"  -> r2_path={meta['r2_path']}  file={meta['file_key']}  sheet={meta['sheet_name']}")
         print("#" * 80)
 
         records = scrape_tag(meta["scrape_tag"], max_pages=max_pages)
-
         before_filter = len(records)
         records = filter_yesterday_hits(records)
-
-        print(
-            f"  Date filter: {before_filter} -> {len(records)} ads "
-            f"(postDate = {TARGET_DATE})"
-        )
+        print(f"  Date filter: {before_filter} -> {len(records)} ads (postDate = {TARGET_DATE})")
 
         if records:
-            # Convert postDate and updateDate to Riyadh datetime strings
             records_df = pd.DataFrame(records)
             records_df = convert_timestamp_columns(records_df)
             records = records_df.to_dict("records")
 
-        # Fetch seller profiles for unique authors in this batch
         seller_map = fetch_sellers_for_records(records)
         print(f"  Seller profiles fetched: {len(seller_map)}")
 
@@ -663,12 +785,6 @@ def run(
                 aid_str = str(aid).strip()
                 if aid_str in seller_map:
                     rec.update(seller_map[aid_str])
-
-            ad_id = str(rec.get("id") or "unknown")
-            image_urls = rec.get("imagesList", [])
-
-            # rec["image_r2_paths"] = download_images(image_urls, ad_id, meta["r2_path"], dt=dt)
-            # rec.pop("imagesList", None)
 
         groups[(meta["r2_path"], meta["file_key"])][meta["sheet_name"]].extend(records)
 
@@ -694,11 +810,10 @@ def run(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--categories", default="haraj_all_categories.csv")
-    parser.add_argument("--cat-name", default=None, help="Only process this cat_name (e.g. Cars)")
+    parser.add_argument("--cat-name", default=None, help="Only process this cat_name (e.g. Cars, Real_Estate)")
     parser.add_argument("--max-pages", type=int, default=None, help="Test limit: max pages per leaf")
     parser.add_argument("--limit-rows", type=int, default=None, help="Test limit: only first N leaf rows")
-    parser.add_argument("--upload-target", default="r2", choices=["r2", "drive"],
-                        help="Upload target: 'r2' (Cloudflare R2) or 'drive' (Google Drive)")
+    parser.add_argument("--upload-target", default="r2", choices=["r2", "drive"])
     args = parser.parse_args()
 
     run(

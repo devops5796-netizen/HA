@@ -13,7 +13,7 @@ import io
 from datetime import datetime
 
 # Global upload target: "r2" or "drive"
-_UPLOAD_TARGET = "drive"
+_UPLOAD_TARGET = "r2"
 
 
 def set_upload_target(target: str):
