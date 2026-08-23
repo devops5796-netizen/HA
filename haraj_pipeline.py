@@ -185,7 +185,9 @@ def clean_text(value):
 
 def clean_for_excel(value):
     if isinstance(value, str):
-        return re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F]", "", value)
+        # Remove ALL control characters that Excel/OpenXML does not allow
+        # C0 controls (except allowed: \t\n\r) + C1 controls (\x7F-\x9F)
+        return re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]", "", value)
     return value
 
 
@@ -567,8 +569,8 @@ def upload_group(r2_path: str, file_key: str, sheets: dict[str, list], dt: datet
                 continue
             df = pd.DataFrame(rows)
             for col in df.columns:
-                if df[col].dtype == object:
-                    df[col] = df[col].apply(clean_for_excel)
+                # Apply to ALL cells — openpyxl rejects control chars in ANY column
+                df[col] = df[col].map(clean_for_excel)
             name = unique_sheet_name(sheet_name, used_names)
             used_names.add(name)
             df.to_excel(writer, sheet_name=name, index=False)
