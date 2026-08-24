@@ -696,7 +696,7 @@ def run(
     set_upload_target(upload_target)
     dt = dt or datetime.now()
 
-    """# Real Estate special mode
+    # Real Estate special mode
     if cat_name_filter == "Real_Estate":
         total_ads = run_real_estate(
             categories_csv=categories_csv,
@@ -713,7 +713,7 @@ def run(
         print(f"\n--- Request Stats -> {stats_file} ---")
         print(f"Total: {stats['total_requests']} req | {stats['total_req_per_min']} req/min")
         print(f"By source: {stats['per_source']}")
-        return"""
+        return
 
     # Normal mode (original logic, unchanged)
     df = pd.read_csv(categories_csv, encoding="utf-8-sig")
