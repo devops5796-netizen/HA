@@ -75,6 +75,11 @@ CITIES = {
     "Bahrain": "البحرين",
 }
 
+# Reverse lookup so we can map a post's own (Arabic) `city` field back to
+# our canonical English city key when the task itself didn't specify a city
+# (i.e. "cat" and "subcat" modes, which don't filter by city).
+CITY_AR_TO_EN = {ar: en for en, ar in CITIES.items()}
+
 HEADERS = {
     "accept": "*/*",
     "accept-language": "en-US,en;q=0.9",
@@ -190,6 +195,26 @@ def clean_text(value):
         except (UnicodeEncodeError, UnicodeDecodeError):
             pass
     return re.sub(r"\s+", " ", value).strip()
+
+
+def clean_arabic(value):
+    """Normalize alef/ya variants so tag strings compare equal regardless of
+    hamza style (أ/إ/آ -> ا) or alef maksura vs ya (ى -> ي). Mirrors
+    discover_categories.py's clean_arabic so it matches level_1_tag_name /
+    level_2_tag_name values coming from haraj_all_categories.csv."""
+    value = clean_text(value)
+    value = value.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا").replace("ى", "ي")
+    return value.strip()
+
+
+def resolve_city(raw_city) -> str:
+    """Map a post's own (Arabic) `city` field to our canonical English city
+    key using CITY_AR_TO_EN. Falls back to the cleaned raw value if it
+    doesn't match a known city, or 'unknown' if empty."""
+    city = clean_text(raw_city)
+    if not city:
+        return "unknown"
+    return CITY_AR_TO_EN.get(city, city)
 
 
 def clean_for_excel(value):
@@ -470,6 +495,145 @@ def fetch_sellers_for_records(records: list[dict]) -> dict[str, dict]:
 
 
 # ============================================================
+# TAG-BASED SUB-CAT / LEVEL-2 RESOLUTION
+# ============================================================
+
+def build_subcat_lookup(df: pd.DataFrame) -> dict[str, dict[str, str]]:
+    """cat_name -> {clean_arabic(level_1_tag_name): level_1_name}
+
+    Used to recover a real sub-category for records scraped in "cat" mode
+    (top-level tag only, no sub-cat filter) by matching each post's own
+    `tags` field against the known level-1 tags for that category.
+    """
+    lookup: dict[str, dict[str, str]] = defaultdict(dict)
+    sub = df[df["level_1_tag_name"].notna()].drop_duplicates(subset=["cat_name", "level_1_tag_name"])
+    for _, row in sub.iterrows():
+        key = clean_arabic(row["level_1_tag_name"])
+        lookup[row["cat_name"]][key] = row["level_1_name"]
+    return dict(lookup)
+
+
+def build_level2_lookup(df: pd.DataFrame) -> dict[tuple[str, str], dict[str, str]]:
+    """(cat_name, level_1_name) -> {clean_arabic(level_2_tag_name): level_2_name}
+
+    Used to recover the level-2 (e.g. car model, bird type) of ANY record --
+    regardless of which mode scraped it -- since no scrape task ever filters
+    by level-2 directly; it's always inferred from the post's own tags.
+    """
+    lookup: dict[tuple[str, str], dict[str, str]] = defaultdict(dict)
+    sub = df[df["level_2_tag_name"].notna()].drop_duplicates(subset=["cat_name", "level_1_name", "level_2_tag_name"])
+    for _, row in sub.iterrows():
+        key = clean_arabic(row["level_2_tag_name"])
+        lookup[(row["cat_name"], row["level_1_name"])][key] = row["level_2_name"]
+    return dict(lookup)
+
+
+def build_has_level2_set(df: pd.DataFrame) -> set[tuple[str, str]]:
+    """Set of (cat_name, level_1_name) pairs that have at least one known
+    level-2 leaf in the taxonomy. Drives whether a branch gets split into
+    per-city files with level-2 sheets, or a single file with city sheets."""
+    sub = df[df["level_2_name"].notna()]
+    return set(zip(sub["cat_name"], sub["level_1_name"]))
+
+
+def _parse_tags(raw_tags) -> list:
+    if not raw_tags:
+        return []
+    tags = raw_tags
+    if isinstance(tags, str):
+        try:
+            tags = json.loads(tags)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    if not isinstance(tags, (list, tuple)):
+        return []
+    return tags
+
+
+def classify_cat_mode_subcat(raw_tags, cat_name: str, subcat_lookup: dict) -> str | None:
+    """Try to recover the real level-1 sub-category of a "cat" mode record
+    (no sub-cat filter was used for its scrape) by scanning its own `tags`
+    field. Returns the matched level_1_name, or None if nothing matched."""
+    cat_map = subcat_lookup.get(cat_name)
+    if not cat_map:
+        return None
+    for t in _parse_tags(raw_tags):
+        match = cat_map.get(clean_arabic(t))
+        if match:
+            return match
+    return None
+
+
+def classify_level2(raw_tags, cat_name: str, level_1_name: str | None, level2_lookup: dict) -> str | None:
+    """Recover the level-2 leaf (car model, bird type, ...) of a record by
+    scanning its own `tags` field against the known level-2 tags for its
+    (cat_name, level_1_name) branch. Returns None if level_1_name is
+    unknown, the branch has no level-2 taxonomy, or nothing matched."""
+    if not level_1_name:
+        return None
+    cat_map = level2_lookup.get((cat_name, level_1_name))
+    if not cat_map:
+        return None
+    for t in _parse_tags(raw_tags):
+        match = cat_map.get(clean_arabic(t))
+        if match:
+            return match
+    return None
+
+
+# ============================================================
+# FILE / FOLDER GROUPING RULES
+# ============================================================
+#
+#   - cat with NO level_1 at all (leaf right at the top tag):
+#       haraj/.../{cat}/excel/{cat}.xlsx            sheets = city
+#
+#   - cat has level_1, but this record couldn't be matched to any:
+#       haraj/.../{cat}/Uncategorized/excel/Uncategorized.xlsx   sheets = city
+#
+#   - level_1 has NO level_2 anywhere (e.g. Furniture sub-cats):
+#       haraj/.../{cat}/{level1}/excel/{level1}.xlsx  sheets = city
+#
+#   - level_1 HAS level_2 (e.g. Animals -> Parrot -> Zina birds/...):
+#       haraj/.../{cat}/{level1}/excel/{level1}_{city}.xlsx   sheets = level_2
+#       (one excel file PER CITY)
+#
+#   - Cars is special: brand-type level_1 values (Toyota, Nissan, ...) all
+#     share ONE folder "Cars_for_sale_rent" instead of one folder per brand,
+#     but keep the brand name in the filename and split sheets by model
+#     (same level2_sheets mechanics as above). The 3 non-brand Cars level_1
+#     values (Parts & Accessories / Trucks and heavy equipment /
+#     Motorcycles) are NOT brands -- they follow the normal rule above with
+#     their own dedicated folder.
+# ============================================================
+
+CARS_CAT_NAME = "Cars"
+CARS_NON_BRAND_LEVEL1 = {"Parts & Accessories", "Trucks and heavy equipment", "Motorcycles"}
+CARS_BRAND_BUCKET = "Cars_for_sale_rent"
+
+
+def resolve_grouping(cat_name: str, level_1_name: str | None, has_level2_set: set) -> tuple[str, str, str]:
+    """Return (r2_folder, file_label, granularity) for a record.
+    granularity is 'level2_sheets' (one file per city, sheets=level_2) or
+    'city_sheets' (one file total, sheets=city)."""
+    if level_1_name is None:
+        return cat_name, cat_name, "city_sheets"
+
+    if level_1_name == "Uncategorized":
+        return f"{cat_name}/Uncategorized", "Uncategorized", "city_sheets"
+
+    has_l2 = (cat_name, level_1_name) in has_level2_set
+    granularity = "level2_sheets" if has_l2 else "city_sheets"
+
+    if cat_name == CARS_CAT_NAME and level_1_name not in CARS_NON_BRAND_LEVEL1:
+        folder = f"{cat_name}/{CARS_BRAND_BUCKET}"
+    else:
+        folder = f"{cat_name}/{level_1_name}"
+
+    return folder, level_1_name, granularity
+
+
+# ============================================================
 # TASK GENERATOR (3 modes)
 # ============================================================
 
@@ -481,7 +645,7 @@ def generate_scrape_tasks(df: pd.DataFrame, modes: tuple = ("cat", "subcat", "su
                 "mode": "cat",
                 "cat_name": row["cat_name"],
                 "cat_tag": row["cat_tag_name"],
-                "sub_cat": "uncategorized",
+                "sub_cat": "Uncategorized",  # placeholder for logs only -- real per-record classification happens in run()
                 "sub_cat_tag": None,
                 "city_en": None,
                 "city_ar": None,
@@ -564,12 +728,13 @@ def strip_unwanted_columns(record: dict) -> dict:
 
 
 # ============================================================
-# UPLOAD ONE SUB-CAT (excel + json)
+# UPLOAD: one file with CITY sheets
+# (leaf categories, level_1 with no level_2, "Uncategorized" bucket)
 # ============================================================
 
-def upload_subcat_group(cat_name: str, sub_cat: str, cities: dict[str, list], dt: datetime) -> int:
+def upload_subcat_group(r2_folder: str, file_label: str, cities: dict[str, list], dt: datetime) -> int:
     total_ads = sum(len(rows) for rows in cities.values())
-    print(f"\n[{cat_name}] {sub_cat}: {len(cities)} city sheet(s), {total_ads} ad(s)")
+    print(f"\n[{r2_folder}] {file_label}: {len(cities)} city sheet(s), {total_ads} ad(s)")
     for city, rows in cities.items():
         print(f"  - {city}: {len(rows)}")
     if total_ads == 0:
@@ -593,11 +758,10 @@ def upload_subcat_group(cat_name: str, sub_cat: str, cities: dict[str, list], dt
             name = unique_sheet_name(city_name, used_names)
             df.to_excel(writer, sheet_name=name, index=False)
 
-    r2_path = f"{cat_name}/{sub_cat}"
     excel_key = upload_buffer(
         excel_buf,
-        filename=f"{sanitize_filename(sub_cat)}.xlsx",
-        r2_path=r2_path,
+        filename=f"{sanitize_filename(file_label)}.xlsx",
+        r2_path=r2_folder,
         file_type="excel",
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         dt=dt,
@@ -607,8 +771,64 @@ def upload_subcat_group(cat_name: str, sub_cat: str, cities: dict[str, list], dt
     json_bytes = json.dumps(cleaned_cities, ensure_ascii=False, indent=2, default=str).encode("utf-8")
     json_key = upload_buffer(
         io.BytesIO(json_bytes),
-        filename=f"{sanitize_filename(sub_cat)}.json",
-        r2_path=r2_path,
+        filename=f"{sanitize_filename(file_label)}.json",
+        r2_path=r2_folder,
+        file_type="json",
+        content_type="application/json",
+        dt=dt,
+    )
+    print(f"  JSON  -> {json_key}")
+    return total_ads
+
+
+# ============================================================
+# UPLOAD: one file PER CITY, with LEVEL-2 sheets
+# (level_1 branches that have a level_2 taxonomy -- e.g. Animals/Parrot,
+# Cars_for_sale_rent/Toyota, Cars/Trucks and heavy equipment, ...)
+# ============================================================
+
+def upload_level2_group(r2_folder: str, file_label: str, city: str, level2_map: dict[str, list], dt: datetime) -> int:
+    total_ads = sum(len(rows) for rows in level2_map.values())
+    file_base = f"{file_label}_{city}"
+    print(f"\n[{r2_folder}] {file_base}: {len(level2_map)} level-2 sheet(s), {total_ads} ad(s)")
+    for level_2, rows in level2_map.items():
+        print(f"  - {level_2}: {len(rows)}")
+    if total_ads == 0:
+        print("  (nothing to upload)")
+        return 0
+
+    cleaned_level2 = {}
+    for level_2_name, rows in level2_map.items():
+        cleaned_level2[level_2_name] = [strip_unwanted_columns(r) for r in rows]
+
+    excel_buf = io.BytesIO()
+    used_names = set()
+    with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+        for level_2_name, rows in cleaned_level2.items():
+            if not rows:
+                continue
+            df = pd.DataFrame(rows)
+            for col in df.columns:
+                df[col] = df[col].map(clean_for_excel)
+            name = unique_sheet_name(level_2_name, used_names)
+            df.to_excel(writer, sheet_name=name, index=False)
+
+    filename_base = f"{sanitize_filename(file_label)}_{sanitize_filename(city)}"
+    excel_key = upload_buffer(
+        excel_buf,
+        filename=f"{filename_base}.xlsx",
+        r2_path=r2_folder,
+        file_type="excel",
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        dt=dt,
+    )
+    print(f"  Excel -> {excel_key}")
+
+    json_bytes = json.dumps(cleaned_level2, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+    json_key = upload_buffer(
+        io.BytesIO(json_bytes),
+        filename=f"{filename_base}.json",
+        r2_path=r2_folder,
         file_type="json",
         content_type="application/json",
         dt=dt,
@@ -718,6 +938,11 @@ def run(
     if cat_name_filter:
         df = df[df["cat_name"] == cat_name_filter]
 
+    subcat_lookup = build_subcat_lookup(df)          # cat -> {tag: level_1_name}
+    level2_lookup = build_level2_lookup(df)           # (cat, level_1) -> {tag: level_2_name}
+    has_level2_set = build_has_level2_set(df)          # {(cat, level_1), ...}
+    cats_with_taxonomy = set(subcat_lookup.keys())     # cats that have ANY level_1 at all
+
     tasks = generate_scrape_tasks(df, modes=modes)
     if limit_tasks:
         tasks = tasks[:limit_tasks]
@@ -747,8 +972,32 @@ def run(
         for rec in records:
             rec["_meta_mode"] = task["mode"]
             rec["_meta_cat"] = task["cat_name"]
-            rec["_meta_sub_cat"] = task["sub_cat"]
-            rec["_meta_city"] = task["city_en"] if task["city_en"] else (rec.get("city") or "unknown")
+
+            if task["mode"] == "cat":
+                # No sub-cat filter was used for this scrape -- try to
+                # recover the real level-1 sub-category from the post's own
+                # tags before giving up.
+                matched_l1 = classify_cat_mode_subcat(rec.get("tags"), task["cat_name"], subcat_lookup)
+                if task["cat_name"] not in cats_with_taxonomy:
+                    # This category has NO level_1 taxonomy at all -- it's a
+                    # true leaf category, not "uncategorized".
+                    rec["_meta_sub_cat"] = None
+                else:
+                    rec["_meta_sub_cat"] = matched_l1 or "Uncategorized"
+            else:
+                # subcat / subcat_city tasks always carry a real level_1.
+                rec["_meta_sub_cat"] = task["sub_cat"]
+
+            # Level-2 (model / bird type / ...) is never targeted by a scrape
+            # task directly -- always inferred from the post's own tags,
+            # scoped to whatever level_1 branch we just settled on.
+            level_1_for_l2 = rec["_meta_sub_cat"] if rec["_meta_sub_cat"] not in (None, "Uncategorized") else None
+            rec["_meta_level2"] = classify_level2(rec.get("tags"), task["cat_name"], level_1_for_l2, level2_lookup)
+
+            # subcat_city tasks already filtered by a specific city, so trust
+            # the task. Otherwise (cat/subcat modes) resolve the post's own
+            # `city` field to our canonical English city key.
+            rec["_meta_city"] = task["city_en"] if task["city_en"] else resolve_city(rec.get("city"))
 
             ad_id = str(rec.get("id", ""))
             if not ad_id:
@@ -783,28 +1032,53 @@ def run(
             if aid_str in seller_map:
                 rec.update(seller_map[aid_str])
 
-    cat_subcat_city = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    for rec in records_list:
-        cat = rec.get("_meta_cat", "Unknown")
-        sub = rec.get("_meta_sub_cat", "uncategorized")
-        city = rec.get("_meta_city") or rec.get("city") or "unknown"
-        cat_subcat_city[cat][sub][city].append(rec)
-
     cat_slug = sanitize_filename(cat_name_filter) if cat_name_filter else "all"
 
     stats_file = f"request_stats_{cat_slug}.json"
     tracker.save(stats_file)
 
-    total_uploaded = 0
-    for cat_name, subcats in cat_subcat_city.items():
-        print("\n" + "=" * 80)
-        print(f"UPLOADING category: {cat_name}")
-        print("=" * 80)
-        for sub_cat, cities in subcats.items():
-            total_uploaded += upload_subcat_group(cat_name, sub_cat, cities, dt=dt)
+    # --------------------------------------------------------------
+    # Grouping for UPLOAD (drives the actual file/folder layout):
+    #   city_sheets groups:   (folder, label) -> {city: [records]}
+    #   level2_sheets groups: (folder, label) -> {city: {level_2: [records]}}
+    # --------------------------------------------------------------
+    city_sheet_groups: dict[tuple[str, str], dict[str, list]] = defaultdict(lambda: defaultdict(list))
+    level2_sheet_groups: dict[tuple[str, str], dict[str, dict[str, list]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
-    target_subcats = cat_subcat_city.get(cat_name_filter, {}) if cat_name_filter else {}
-    summary = build_summary(cat_name_filter or "all", target_subcats, dt, cat_slug=cat_slug)
+    # Separate, simpler aggregation purely for the summary report -- keyed by
+    # level_1 only (ignores level_2 / the Cars brand-bucket redirect), so the
+    # summary keeps reporting one entry per real sub-category regardless of
+    # how files ended up physically split.
+    summary_groups: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
+
+    for rec in records_list:
+        cat = rec.get("_meta_cat", "Unknown")
+        level_1 = rec.get("_meta_sub_cat")
+        city = rec.get("_meta_city") or "unknown"
+
+        summary_groups[level_1 if level_1 is not None else cat][city].append(rec)
+
+        folder, label, granularity = resolve_grouping(cat, level_1, has_level2_set)
+        if granularity == "level2_sheets":
+            level_2 = rec.get("_meta_level2") or "Other"
+            level2_sheet_groups[(folder, label)][city][level_2].append(rec)
+        else:
+            city_sheet_groups[(folder, label)][city].append(rec)
+
+    total_uploaded = 0
+
+    print("\n" + "=" * 80)
+    print(f"UPLOADING category: {cat_name_filter or 'all'}")
+    print("=" * 80)
+
+    for (folder, label), cities in city_sheet_groups.items():
+        total_uploaded += upload_subcat_group(folder, label, cities, dt=dt)
+
+    for (folder, label), city_map in level2_sheet_groups.items():
+        for city, level2_map in city_map.items():
+            total_uploaded += upload_level2_group(folder, label, city, level2_map, dt=dt)
+
+    summary = build_summary(cat_name_filter or "all", summary_groups, dt, cat_slug=cat_slug)
 
     if skip_summary:
         placeholder_path = f"summary_placeholder_{cat_slug}.json"
