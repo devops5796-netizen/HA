@@ -811,10 +811,15 @@ def run(
     else:
         upload_summary(cat_name_filter or "all", summary, dt)
 
-    print("\n" + "=" * 80)
+        print("\n" + "=" * 80)
     print(f"GLOBAL STATS")
     stats = tracker.summary()
     print(f"Total requests : {stats['total_requests']}")
+    
+    # ✅ Fix: calculate failed from records directly
+    failed_requests = sum(1 for r in tracker.records if not r.get("success", True))
+    print(f"Failed requests: {failed_requests}")
+    
     print(f"Per source     : {stats.get('per_source', {})}")
     print(f"Duration       : {stats.get('total_duration_min', 0):.2f} min")
     print("=" * 80)
