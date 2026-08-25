@@ -401,20 +401,15 @@ def fetch_seller_profile(author_id: str) -> dict | None:
             response.raise_for_status()
             data = response.json()
             if "errors" in data:
-                err_msg = str(data.get("errors", "unknown"))[:200]
-                tracker.log_request(source="seller_profiles", success=False, details=f"GraphQL errors: {err_msg}")
                 return None
             profile = data.get("data", {}).get("profile")
-            tracker.log_request(source="seller_profiles", success=bool(profile))
             return profile
-        except requests.exceptions.RequestException as e:
-            tracker.log_request(source="seller_profiles", success=False, details=f"RequestException ({type(e).__name__}): {str(e)[:150]}")
+        except requests.exceptions.RequestException:
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_DELAY * attempt)
             else:
                 return None
-        except Exception as e:
-            tracker.log_request(source="seller_profiles", success=False, details=f"Unexpected ({type(e).__name__}): {str(e)[:150]}")
+        except Exception:
             return None
     return None
 
@@ -459,12 +454,18 @@ def fetch_sellers_for_records(records: list[dict]) -> dict[str, dict]:
     if not unique_ids:
         return {}
     sellers = {}
+    success_count = 0
+    fail_count = 0
     for idx, author_id in enumerate(sorted(unique_ids), 1):
         profile = fetch_seller_profile(author_id)
         if profile:
             sellers[author_id] = flatten_seller_profile(profile)
+            success_count += 1
+        else:
+            fail_count += 1
         if idx < len(unique_ids):
             time.sleep(random.uniform(MIN_SELLER_DELAY, MAX_SELLER_DELAY))
+    print(f"  Seller profiles: {success_count} success | {fail_count} failed | {len(unique_ids)} total")
     return sellers
 
 
@@ -814,7 +815,7 @@ def run(
         upload_summary(cat_name_filter or "all", summary, dt)
 
     print("\n" + "=" * 80)
-    print(f"GLOBAL STATS")
+    print(f"GLOBAL STATS (Scraping Only)")
     stats = tracker.summary()
     print(f"Total requests : {stats['total_requests']}")
     print(f"Per source     : {stats.get('per_source', {})}")
@@ -822,7 +823,7 @@ def run(
     print("=" * 80)
 
     print("\n" + "=" * 80)
-    print("FAILED REQUESTS DETAIL")
+    print("FAILED SCRAPING REQUESTS DETAIL")
     print("=" * 80)
     tracker.print_failed_summary()
     print("=" * 80)
