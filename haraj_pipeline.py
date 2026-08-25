@@ -1,6 +1,19 @@
+"""
+haraj_pipeline_unified.py
+=========================
+Unified scraper supporting 3 modes:
+  1. scrape by cat         (top-level tag -> uncategorized)
+  2. scrape by sub cat     (level-1 tag)
+  3. scrape by sub cat + city (level-1 tag + city filter)
+
+All data merged (deduped by ad id), then regrouped by sub-cat -> city.
+Output per sub-cat: Excel (sheets=cities) + JSON + Summary (DKSA-style).
+"""
+
 import argparse
 import io
 import json
+import os
 import random
 import re
 import time
@@ -38,15 +51,6 @@ IMAGE_TIMEOUT = 20
 Riyadh_now = datetime.now(ZoneInfo("Asia/Riyadh"))
 TARGET_DATE = (Riyadh_now.date() - timedelta(days=1))
 
-# Level-1 names under "Cars" that are NOT car brands -- these keep their
-# own folder instead of being merged into Cars_for_sale_rent.
-NON_BRAND_CAR_LEVEL1 = {
-    "Parts & Accessories",
-    "Trucks and heavy equipment",
-    "Motorcycles",
-}
-
-# Cities for Real Estate scraping (Arabic names as used by Haraj combined tags)
 CITIES = {
     "Riyadh": "الرياض",
     "Eastern Region": "المنطقة الشرقية",
@@ -131,6 +135,34 @@ fragment PostFields on Post {
 """
 
 # ============================================================
+# FAILED TASKS TRACKER
+# ============================================================
+
+class FailedTracker:
+    def __init__(self):
+        self.failed_tasks = []
+
+    def log(self, task: dict, error: str):
+        self.failed_tasks.append({
+            "name": f"{task.get('cat_name', 'unknown')}-{task.get('sub_cat', 'unknown')}-{task.get('city_en', 'all')}",
+            "errors": 1,
+            "detail": str(error),
+            "mode": task.get("mode"),
+            "tag": task.get("tag"),
+        })
+
+    def save(self, filepath: str) -> dict:
+        data = {
+            "total_failed": len(self.failed_tasks),
+            "failed_tasks": self.failed_tasks,
+        }
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return data
+
+failed_tracker = FailedTracker()
+
+# ============================================================
 # SELLER CONFIG
 # ============================================================
 
@@ -185,8 +217,6 @@ def clean_text(value):
 
 def clean_for_excel(value):
     if isinstance(value, str):
-        # Remove ALL control characters that Excel/OpenXML does not allow
-        # C0 controls (except allowed: \t\n\r) + C1 controls (\x7F-\x9F)
         return re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]", "", value)
     return value
 
@@ -206,12 +236,14 @@ def clean_sheet_name(name: str) -> str:
 def unique_sheet_name(name: str, existing: set) -> str:
     base = clean_sheet_name(name)
     if base not in existing:
+        existing.add(base)
         return base
     counter = 2
     while True:
         suffix = f"_{counter}"
         candidate = base[:31 - len(suffix)] + suffix
         if candidate not in existing:
+            existing.add(candidate)
             return candidate
         counter += 1
 
@@ -223,15 +255,12 @@ def serialize_value(value):
 
 
 def build_post_row(post: dict) -> dict:
-    """Keep every field as its own column."""
     result = {}
-
     for key, value in post.items():
         if key == "imagesList":
             result[key] = value
         else:
             result[key] = serialize_value(value)
-
     return result
 
 
@@ -246,7 +275,6 @@ def download_images(image_urls: list[str], ad_id: str, r2_path: str, dt: datetim
         try:
             r = requests.get(url, timeout=IMAGE_TIMEOUT)
             if r.status_code != 200:
-                print(f"      [ERROR] image {idx} ({ad_id}): HTTP {r.status_code}")
                 tracker.log_request(source="images", success=False)
                 continue
             img = Image.open(io.BytesIO(r.content)).convert("RGB")
@@ -260,17 +288,15 @@ def download_images(image_urls: list[str], ad_id: str, r2_path: str, dt: datetim
             tracker.log_request(source="images", success=bool(key))
             if key:
                 r2_paths.append(key)
-        except Exception as e:
-            print(f"      [ERROR] image {idx} ({ad_id}): {e}")
+        except Exception:
             tracker.log_request(source="images", success=False)
-
         if idx < len(image_urls):
             time.sleep(random.uniform(MIN_IMAGE_DELAY, MAX_IMAGE_DELAY))
     return r2_paths
 
 
 # ============================================================
-# GRAPHQL SCRAPING (generalized from try_toyota.py)
+# GRAPHQL SCRAPING
 # ============================================================
 
 def fetch_page(tag: str, page: int, city: str | None = None, before_update_date: int | None = None) -> tuple[list, bool, int | None]:
@@ -279,7 +305,6 @@ def fetch_page(tag: str, page: int, city: str | None = None, before_update_date:
         "lang": LANG,
         "clientId": CLIENT_ID,
     }
-
     variables = {
         "tag": tag,
         "page": page,
@@ -297,57 +322,40 @@ def fetch_page(tag: str, page: int, city: str | None = None, before_update_date:
             response = session.post(BASE_URL, params=params, json=payload, timeout=60)
             response.raise_for_status()
             data = response.json()
-
             if "errors" in data:
-                print(f"    GraphQL errors: {json.dumps(data['errors'], ensure_ascii=False)}")
                 tracker.log_request(source="listing_pages", success=False)
                 return [], False, None
-
             posts_data = data.get("data", {}).get("posts", {})
             items = posts_data.get("items", [])
             has_next = posts_data.get("pageInfo", {}).get("hasNextPage", False)
             tracker.log_request(source="listing_pages", success=True)
-
             last_update_date = items[-1].get("updateDate") if items else None
             return items, has_next, last_update_date
-
-        except requests.exceptions.RequestException as e:
-            print(f"    Request failed (attempt {attempt}/{MAX_RETRIES}) tag={tag} city={city} page={page}: {e}")
+        except requests.exceptions.RequestException:
             tracker.log_request(source="listing_pages", success=False)
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_DELAY * attempt)
             else:
-                print("    Max retries reached.")
                 return [], False, None
-        except Exception as e:
-            print(f"    Unexpected error: {e}")
+        except Exception:
             tracker.log_request(source="listing_pages", success=False)
             return [], False, None
-
     return [], False, None
 
 
 def convert_timestamp_columns(df: pd.DataFrame) -> pd.DataFrame:
-    timestamp_columns = [
-        "postDate",
-        "updateDate",
-    ]
+    timestamp_columns = ["postDate", "updateDate"]
     df = df.copy()
     for col in timestamp_columns:
         if col in df.columns:
             df[col] = (
                 pd.to_datetime(
                     pd.to_numeric(df[col], errors="coerce"),
-                    unit="s",
-                    errors="coerce",
-                    utc=True
+                    unit="s", errors="coerce", utc=True
                 )
                 .dt.tz_convert("Asia/Riyadh")
                 .dt.strftime("%Y-%m-%d %H:%M:%S")
             )
-
-            print(f"  Converted timestamp column: {col}")
-
     return df
 
 
@@ -376,13 +384,10 @@ def scrape_tag(tag: str, max_pages: int | None = None, city: str | None = None) 
 
     while True:
         if max_pages is not None and page >= max_pages:
-            print(f"    Reached page limit: {max_pages}")
             break
-
         items, has_next, last_update_date = fetch_page(tag, page, city=city, before_update_date=before_update_date)
         if not items:
             break
-
         new_items = 0
         for post in items:
             post_id = post.get("id")
@@ -391,27 +396,18 @@ def scrape_tag(tag: str, max_pages: int | None = None, city: str | None = None) 
             seen_ids.add(post_id)
             all_posts.append(build_post_row(post))
             new_items += 1
-
-        print(f"    page {page}: {len(items)} returned, {new_items} new (total {len(all_posts)})")
-
         if not has_next:
             break
-
         if new_items == 0:
             consecutive_empty += 1
             if consecutive_empty >= 3:
-                print(f"    Stopping: {consecutive_empty} consecutive empty pages")
                 break
         else:
             consecutive_empty = 0
-
         if last_update_date is not None:
             before_update_date = last_update_date
-
         page += 1
-        delay = random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY)
-        time.sleep(delay)
-
+        time.sleep(random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY))
     return all_posts
 
 
@@ -426,53 +422,53 @@ def fetch_seller_profile(author_id: str) -> dict | None:
             response = session.post(SELLER_URL, headers=SELLER_HEADERS, json=payload, timeout=60)
             response.raise_for_status()
             data = response.json()
-
             if "errors" in data:
-                err_msg = data["errors"][0].get("message", "") if data["errors"] else ""
-                print(f"    [Seller] GraphQL error for {author_id}: {err_msg}")
                 tracker.log_request(source="seller_profiles", success=False)
                 return None
-
             profile = data.get("data", {}).get("profile")
             tracker.log_request(source="seller_profiles", success=bool(profile))
             return profile
-
-        except requests.exceptions.RequestException as e:
-            print(f"    [Seller] Request failed (attempt {attempt}/{MAX_RETRIES}) for {author_id}: {e}")
+        except requests.exceptions.RequestException:
             tracker.log_request(source="seller_profiles", success=False)
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_DELAY * attempt)
             else:
-                print(f"    [Seller] Max retries reached for {author_id}")
                 return None
-        except Exception as e:
-            print(f"    [Seller] Unexpected error for {author_id}: {e}")
+        except Exception:
             tracker.log_request(source="seller_profiles", success=False)
             return None
     return None
 
 
+def extract_phones(contacts: list) -> list[str]:
+    """Extract phone numbers from contacts list."""
+    phones = []
+    for c in (contacts or []):
+        if isinstance(c, dict) and c.get("type") == "PHONE" and c.get("info"):
+            phones.append(str(c["info"]).strip())
+    return phones
+
+
 def flatten_seller_profile(profile: dict) -> dict:
+    """Flatten seller profile. No seller_id. No flattened contacts.
+    Returns: seller_contacts (JSON), phone (list), and other fields."""
     if not profile:
         return {}
-    row = {
-        "seller_id": profile.get("id"),
+
+    contacts = profile.get("contacts") or []
+    phones = extract_phones(contacts)
+
+    return {
         "seller_handler": profile.get("handler"),
         "seller_type": profile.get("type"),
         "seller_description": profile.get("description"),
         "seller_updatedAt": profile.get("updatedAt"),
         "seller_locations": json.dumps(profile.get("locations") or [], ensure_ascii=False),
-        "seller_contacts": json.dumps(profile.get("contacts") or [], ensure_ascii=False),
+        "seller_contacts": json.dumps(contacts, ensure_ascii=False),
         "seller_verifications": json.dumps(profile.get("verifications") or [], ensure_ascii=False),
         "seller_pages": json.dumps(profile.get("pages") or [], ensure_ascii=False),
+        "phone": phones,
     }
-    contacts = profile.get("contacts") or []
-    for i, contact in enumerate(contacts, start=1):
-        row[f"seller_contact_{i}_id"] = contact.get("id")
-        row[f"seller_contact_{i}_description"] = contact.get("description")
-        row[f"seller_contact_{i}_info"] = contact.get("info")
-        row[f"seller_contact_{i}_type"] = contact.get("type")
-    return row
 
 
 def fetch_sellers_for_records(records: list[dict]) -> dict[str, dict]:
@@ -481,12 +477,9 @@ def fetch_sellers_for_records(records: list[dict]) -> dict[str, dict]:
         aid = rec.get("authorId")
         if aid is not None:
             unique_ids.add(str(aid).strip())
-
     if not unique_ids:
         return {}
-
     sellers = {}
-    print(f"  Unique sellers to fetch: {len(unique_ids)}")
     for idx, author_id in enumerate(sorted(unique_ids), 1):
         profile = fetch_seller_profile(author_id)
         if profile:
@@ -497,188 +490,258 @@ def fetch_sellers_for_records(records: list[dict]) -> dict[str, dict]:
 
 
 # ============================================================
-# CATEGORY CLASSIFICATION -> (scrape_tag, r2_path, file_key, sheet_name)
+# TASK GENERATOR (3 modes)
 # ============================================================
 
-def classify_row(row: dict) -> dict:
-    cat_name = row["cat_name"]
-    l1_name, l1_tag = row.get("level_1_name"), row.get("level_1_tag_name")
-    l2_name, l2_tag = row.get("level_2_name"), row.get("level_2_tag_name")
-    cat_tag = row["cat_tag_name"]
-
-    if pd.notna(l2_tag) and l2_tag:
-        tag_to_scrape = l2_tag
-    elif pd.notna(l1_tag) and l1_tag:
-        tag_to_scrape = l1_tag
-    else:
-        tag_to_scrape = cat_tag
-
-    has_l1 = pd.notna(l1_name) and bool(l1_name)
-    has_l2 = pd.notna(l2_name) and bool(l2_name)
-
-    if cat_name == "Cars":
-        if has_l1 and l1_name in NON_BRAND_CAR_LEVEL1:
-            r2_path = f"Cars/{l1_name}"
-            file_key = l1_name
-            sheet_name = l2_name if has_l2 else l1_name
-        elif has_l1:  # a brand
-            r2_path = "Cars/Cars_for_sale_rent"
-            file_key = l1_name
-            sheet_name = l2_name if has_l2 else l1_name
-        else:
-            r2_path = "Cars"
-            file_key = "Cars"
-            sheet_name = "All"
-    else:
-        if has_l1:
-            r2_path = f"{cat_name}/{l1_name}"
-            file_key = l1_name
-            sheet_name = l2_name if has_l2 else l1_name
-        else:
-            r2_path = cat_name
-            file_key = cat_name
-            sheet_name = cat_name
-
-    return {
-        "scrape_tag": tag_to_scrape,
-        "r2_path": r2_path,
-        "file_key": file_key,
-        "sheet_name": sheet_name,
-    }
+def generate_scrape_tasks(df: pd.DataFrame, modes: tuple = ("cat", "subcat", "subcat_city")) -> list[dict]:
+    tasks = []
+    if "cat" in modes:
+        for _, row in df.drop_duplicates(subset=["cat_name"]).iterrows():
+            tasks.append({
+                "mode": "cat",
+                "cat_name": row["cat_name"],
+                "cat_tag": row["cat_tag_name"],
+                "sub_cat": "uncategorized",
+                "sub_cat_tag": None,
+                "city_en": None,
+                "city_ar": None,
+                "tag": row["cat_tag_name"],
+            })
+    subcat_df = df[df["level_1_name"].notna()].drop_duplicates(subset=["cat_name", "level_1_name"])
+    if "subcat" in modes:
+        for _, row in subcat_df.iterrows():
+            tasks.append({
+                "mode": "subcat",
+                "cat_name": row["cat_name"],
+                "cat_tag": row["cat_tag_name"],
+                "sub_cat": row["level_1_name"],
+                "sub_cat_tag": row["level_1_tag_name"],
+                "city_en": None,
+                "city_ar": None,
+                "tag": row["level_1_tag_name"] if pd.notna(row["level_1_tag_name"]) else row["cat_tag_name"],
+            })
+    if "subcat_city" in modes:
+        for _, row in subcat_df.iterrows():
+            tag = row["level_1_tag_name"] if pd.notna(row["level_1_tag_name"]) else row["cat_tag_name"]
+            for city_en, city_ar in CITIES.items():
+                tasks.append({
+                    "mode": "subcat_city",
+                    "cat_name": row["cat_name"],
+                    "cat_tag": row["cat_tag_name"],
+                    "sub_cat": row["level_1_name"],
+                    "sub_cat_tag": row["level_1_tag_name"],
+                    "city_en": city_en,
+                    "city_ar": city_ar,
+                    "tag": tag,
+                })
+    return tasks
 
 
 # ============================================================
-# UPLOAD ONE GROUP (excel + json, all its sheets)
+# DEDUP LOGIC: subcat_city > subcat > cat
 # ============================================================
 
-def upload_group(r2_path: str, file_key: str, sheets: dict[str, list], dt: datetime) -> int:
-    total_ads = sum(len(rows) for rows in sheets.values())
-    print(f"\n{r2_path} / {file_key}: {len(sheets)} sheet(s), {total_ads} ad(s)")
-    for name, rows in sheets.items():
-        print(f"  - {name}: {len(rows)}")
+MODE_PRIORITY = {"cat": 1, "subcat": 2, "subcat_city": 3}
 
+def should_replace(existing: dict, new: dict) -> bool:
+    existing_mode = existing.get("_meta_mode", "cat")
+    new_mode = new.get("_meta_mode", "cat")
+    return MODE_PRIORITY.get(new_mode, 0) > MODE_PRIORITY.get(existing_mode, 0)
+
+
+def merge_record(existing: dict, new: dict) -> dict:
+    if should_replace(existing, new):
+        return new
+    return existing
+
+
+# ============================================================
+# COLUMN CLEANUP (before upload)
+# ============================================================
+
+COLUMNS_TO_DROP = [
+    "cat_name",
+    "level_1_name",
+    "level_2_name",
+    "seller_id",
+    "_meta_mode",
+    "_meta_cat",
+    "_meta_sub_cat",
+    "_meta_city",
+]
+
+
+def strip_unwanted_columns(record: dict) -> dict:
+    """Remove internal metadata + unwanted columns before upload."""
+    result = dict(record)
+    for col in COLUMNS_TO_DROP:
+        result.pop(col, None)
+    # Also drop any flattened seller_contact_* columns (safety net)
+    for key in list(result.keys()):
+        if key.startswith("seller_contact_"):
+            result.pop(key, None)
+    return result
+
+
+# ============================================================
+# UPLOAD ONE SUB-CAT (excel + json)
+# ============================================================
+
+def upload_subcat_group(cat_name: str, sub_cat: str, cities: dict[str, list], dt: datetime) -> int:
+    total_ads = sum(len(rows) for rows in cities.values())
+    print(f"\n[{cat_name}] {sub_cat}: {len(cities)} city sheet(s), {total_ads} ad(s)")
+    for city, rows in cities.items():
+        print(f"  - {city}: {len(rows)}")
     if total_ads == 0:
         print("  (nothing to upload)")
         return 0
 
+    # Strip unwanted columns from every record
+    cleaned_cities = {}
+    for city_name, rows in cities.items():
+        cleaned_cities[city_name] = [strip_unwanted_columns(r) for r in rows]
+
     excel_buf = io.BytesIO()
     used_names = set()
     with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-        for sheet_name, rows in sheets.items():
+        for city_name, rows in cleaned_cities.items():
             if not rows:
                 continue
             df = pd.DataFrame(rows)
             for col in df.columns:
-                # Apply to ALL cells — openpyxl rejects control chars in ANY column
                 df[col] = df[col].map(clean_for_excel)
-            name = unique_sheet_name(sheet_name, used_names)
-            used_names.add(name)
+            name = unique_sheet_name(city_name, used_names)
             df.to_excel(writer, sheet_name=name, index=False)
 
+    r2_path = f"{cat_name}/{sub_cat}"
     excel_key = upload_buffer(
-        excel_buf, filename=f"{sanitize_filename(file_key)}.xlsx", r2_path=r2_path,
+        excel_buf,
+        filename=f"{sanitize_filename(sub_cat)}.xlsx",
+        r2_path=r2_path,
         file_type="excel",
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         dt=dt,
     )
     print(f"  Excel -> {excel_key}")
 
-    json_bytes = json.dumps(sheets, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+    json_bytes = json.dumps(cleaned_cities, ensure_ascii=False, indent=2, default=str).encode("utf-8")
     json_key = upload_buffer(
-        io.BytesIO(json_bytes), filename=f"{sanitize_filename(file_key)}.json", r2_path=r2_path,
-        file_type="json", content_type="application/json", dt=dt,
+        io.BytesIO(json_bytes),
+        filename=f"{sanitize_filename(sub_cat)}.json",
+        r2_path=r2_path,
+        file_type="json",
+        content_type="application/json",
+        dt=dt,
     )
     print(f"  JSON  -> {json_key}")
     return total_ads
 
 
 # ============================================================
-# REAL ESTATE CITY MODE
+# SUMMARY (DKSA-style)
 # ============================================================
 
-def run_real_estate(
-    categories_csv: str,
-    max_pages: int | None = None,
-    limit_rows: int | None = None,
-    dt: datetime | None = None,
-) -> int:
-    """Scrape Real Estate for all cities using combined tags like 'الرياض_شقق للايجار'.
-    Returns total ad count."""
-    dt = dt or datetime.now()
+def format_failed_summary(failed_items: list, max_len: int = 400) -> str | None:
+    if not failed_items:
+        return None
+    parts = []
+    for item in failed_items[:12]:
+        name = item.get("name", "?")
+        count = item.get("errors", 0)
+        detail = item.get("detail", "")
+        bit = f"{name}: {count} error(s)"
+        if detail:
+            bit += f" ({detail})"
+        parts.append(bit)
+    text = "; ".join(parts)
+    if len(failed_items) > 12:
+        text += f"; +{len(failed_items) - 12} more"
+    return text[:max_len]
 
-    df = pd.read_csv(categories_csv, encoding="utf-8-sig")
-    df = df[df["cat_name"] == "Real_Estate"].copy()
-    if limit_rows:
-        df = df.head(limit_rows)
 
-    rows = df.to_dict("records")
-    total_combinations = len(rows) * len(CITIES)
-    print(f"Real Estate: {len(rows)} sub-categories x {len(CITIES)} cities = {total_combinations} combinations")
+def build_summary(cat_name: str, subcat_groups: dict, dt: datetime, cat_slug: str = None) -> dict:
+    cat_slug = cat_slug or sanitize_filename(cat_name)
 
-    # groups[(r2_path, file_key)][sheet_name] -> list of ad records
-    # file per sub-category, sheet per city
-    groups: dict[tuple, dict] = defaultdict(lambda: defaultdict(list))
-    total_ads_all = 0
-    counter = 0
+    subcategories = []
+    total_listings = 0
+    for sub_cat, cities in subcat_groups.items():
+        count = sum(len(rows) for rows in cities.values())
+        total_listings += count
+        subcategories.append({
+            "name": sub_cat,
+            "listings_count": count,
+            "cities": {city: len(rows) for city, rows in cities.items()},
+        })
 
-    for row in rows:
-        sub_category = row.get("level_1_name") or "Real_Estate"
-        sub_cat_tag = row.get("level_1_tag_name") or row["cat_tag_name"]
+    stats_file = f"request_stats_{cat_slug}.json"
+    request_metrics = {}
+    requests_duration_sec = None
+    if os.path.exists(stats_file):
+        with open(stats_file, "r", encoding="utf-8") as f:
+            stats_data = json.load(f)
+        duration_min = stats_data.get("total_duration_min", 0)
+        if duration_min:
+            requests_duration_sec = duration_min * 60
+        request_metrics = {
+            "requests_total": stats_data.get("total_requests", 0),
+            "requests_failed": 0,
+            "duration_sec": stats_data.get("total_duration", 0),
+            "requests_per_min": stats_data.get("total_req_per_min", 0),
+            "requests_duration_sec": requests_duration_sec,
+        }
 
-        for city_en, city_ar in CITIES.items():
-            counter += 1
-            print("\n" + "#" * 80)
-            print(f"[{counter}/{total_combinations}] {sub_category} > {city_en}")
-            print(f"  tag = '{sub_cat_tag}'  |  city = '{city_ar}'")
-            print("#" * 80)
+    failed_file = f"failed_tasks_{cat_slug}.json"
+    failed_items = []
+    total_failed = 0
+    if os.path.exists(failed_file):
+        with open(failed_file, "r", encoding="utf-8") as f:
+            failed_data = json.load(f)
+        total_failed = failed_data.get("total_failed", 0)
+        request_metrics["requests_failed"] = total_failed
+        failed_items = failed_data.get("failed_tasks", [])
 
-            # FIXED: pass city separately, NOT as combined tag
-            records = scrape_tag(sub_cat_tag, max_pages=max_pages, city=city_ar)
-            before_filter = len(records)
-            records = filter_yesterday_hits(records)
-            print(f"  Date filter: {before_filter} -> {len(records)} ads (postDate = {TARGET_DATE})")
+    total_requests = request_metrics.get("requests_total", 0)
+    if total_requests > 0:
+        request_metrics["error_rate_pct"] = round(total_failed / total_requests * 100, 2)
+    else:
+        request_metrics["error_rate_pct"] = None
 
-            if records:
-                records_df = pd.DataFrame(records)
-                records_df = convert_timestamp_columns(records_df)
-                records = records_df.to_dict("records")
+    if requests_duration_sec and requests_duration_sec > 0:
+        request_metrics["requests_per_min"] = round(
+            request_metrics["requests_total"] / (requests_duration_sec / 60.0), 2
+        )
 
-            seller_map = fetch_sellers_for_records(records)
-            print(f"  Seller profiles fetched: {len(seller_map)}")
+    return {
+        "scraped_at": datetime.now(timezone.utc).isoformat(),
+        "data_scraped_date": TARGET_DATE.strftime("%Y-%m-%d"),
+        "saved_to_R2_date": dt.strftime("%Y-%m-%d"),
+        "category": {
+            "name_en": cat_name,
+            "name_ar": cat_name,
+            "slug": cat_slug,
+            "r2_path": cat_name,
+        },
+        "workflow_name": "haraj",
+        "total_subcategories": len(subcategories),
+        "total_listings": total_listings,
+        "subcategories": subcategories,
+        "request_metrics": request_metrics,
+        "failed_items": failed_items,
+        "failed_items_summary": format_failed_summary(failed_items),
+    }
 
-            for rec in records:
-                rec["city_en"] = city_en
-                rec["city_ar"] = city_ar
-                rec["sub_category"] = sub_category
 
-                aid = rec.get("authorId")
-                if aid is not None:
-                    aid_str = str(aid).strip()
-                    if aid_str in seller_map:
-                        rec.update(seller_map[aid_str])
-
-            # Group: file per sub-category, sheet per city
-            r2_path = f"Real_Estate/{sub_category}"
-            file_key = sub_category
-            sheet_name = city_en
-
-            groups[(r2_path, file_key)][sheet_name].extend(records)
-            total_ads_all += len(records)
-
-            if counter < total_combinations:
-                delay = random.uniform(MIN_LEAF_DELAY, MAX_LEAF_DELAY)
-                print(f"  Waiting {delay:.1f}s before next combination...")
-                time.sleep(delay)
-
-    print("\n" + "=" * 80)
-    print(f"SCRAPING DONE -- uploading {len(groups)} file(s)")
-    print("=" * 80)
-
-    uploaded_ads = 0
-    for (r2_path, file_key), sheets in groups.items():
-        uploaded_ads += upload_group(r2_path, file_key, sheets, dt=dt)
-
-    return total_ads_all
+def upload_summary(cat_name: str, summary: dict, dt: datetime):
+    summary_bytes = json.dumps(summary, ensure_ascii=False, indent=2).encode("utf-8")
+    key = upload_buffer(
+        io.BytesIO(summary_bytes),
+        filename="summary.json",
+        r2_path=cat_name,
+        file_type="summary",
+        content_type="application/json",
+        dt=dt,
+    )
+    print(f"  Summary -> {key}")
 
 
 # ============================================================
@@ -689,119 +752,146 @@ def run(
     categories_csv: str = "haraj_all_categories.csv",
     cat_name_filter: str | None = None,
     max_pages: int | None = None,
-    limit_rows: int | None = None,
+    limit_tasks: int | None = None,
     dt: datetime | None = None,
     upload_target: str = "r2",
+    modes: tuple = ("cat", "subcat", "subcat_city"),
+    skip_summary: bool = False,
 ) -> None:
     set_upload_target(upload_target)
     dt = dt or datetime.now()
 
-    # Real Estate special mode
-    if cat_name_filter == "Real_Estate":
-        total_ads = run_real_estate(
-            categories_csv=categories_csv,
-            max_pages=max_pages,
-            limit_rows=limit_rows,
-            dt=dt,
-        )
-        print("\n" + "=" * 80)
-        print(f"TOTAL REAL ESTATE ADS COLLECTED: {total_ads}")
-        print("=" * 80)
-
-        stats_file = "request_stats_Real_Estate.json"
-        stats = tracker.save(stats_file)
-        print(f"\n--- Request Stats -> {stats_file} ---")
-        print(f"Total: {stats['total_requests']} req | {stats['total_req_per_min']} req/min")
-        print(f"By source: {stats['per_source']}")
-        return
-
-    # Normal mode (original logic, unchanged)
     df = pd.read_csv(categories_csv, encoding="utf-8-sig")
     if cat_name_filter:
         df = df[df["cat_name"] == cat_name_filter]
-    if limit_rows:
-        df = df.head(limit_rows)
 
-    rows = df.to_dict("records")
-    total = len(rows)
-    print(f"Leaf categories to scrape: {total}" + (f" (cat={cat_name_filter})" if cat_name_filter else ""))
+    tasks = generate_scrape_tasks(df, modes=modes)
+    if limit_tasks:
+        tasks = tasks[:limit_tasks]
 
-    groups: dict[tuple, dict] = defaultdict(lambda: defaultdict(list))
+    total_tasks = len(tasks)
+    print(f"Total scrape tasks: {total_tasks} (modes={modes})")
 
-    for i, row in enumerate(rows, 1):
-        meta = classify_row(row)
+    all_records = {}
+    for i, task in enumerate(tasks, 1):
         print("\n" + "#" * 80)
-        print(
-            f"[{i}/{total}] {row['cat_name']} > {row.get('level_1_name')} > {row.get('level_2_name')} "
-            f"(tag='{meta['scrape_tag']}')"
-        )
-        print(f"  -> r2_path={meta['r2_path']}  file={meta['file_key']}  sheet={meta['sheet_name']}")
+        print(f"[{i}/{total_tasks}] mode={task['mode']} | cat={task['cat_name']} | sub={task['sub_cat']} | city={task['city_en'] or 'ALL'}")
+        print(f"  tag={task['tag']}")
         print("#" * 80)
-        print(meta["scrape_tag"])
-        records = scrape_tag(meta["scrape_tag"], max_pages=max_pages)
+
+        try:
+            records = scrape_tag(task["tag"], max_pages=max_pages, city=task["city_ar"])
+        except Exception as e:
+            print(f"  [ERROR] scrape failed: {e}")
+            failed_tracker.log(task, str(e))
+            if i < total_tasks:
+                time.sleep(random.uniform(MIN_LEAF_DELAY, MAX_LEAF_DELAY))
+            continue
 
         before_filter = len(records)
         records = filter_yesterday_hits(records)
-
-        print(
-            f"  Date filter: {before_filter} -> {len(records)} ads "
-            f"(postDate = {TARGET_DATE})"
-        )
-
-        if records:
-            records_df = pd.DataFrame(records)
-            records_df = convert_timestamp_columns(records_df)
-            records = records_df.to_dict("records")
-
-        seller_map = fetch_sellers_for_records(records)
-        print(f"  Seller profiles fetched: {len(seller_map)}")
+        print(f"  Date filter: {before_filter} -> {len(records)} ads (postDate = {TARGET_DATE})")
 
         for rec in records:
-            rec["cat_name"] = row["cat_name"]
-            rec["level_1_name"] = row.get("level_1_name")
-            rec["level_2_name"] = row.get("level_2_name")
+            rec["_meta_mode"] = task["mode"]
+            rec["_meta_cat"] = task["cat_name"]
+            rec["_meta_sub_cat"] = task["sub_cat"]
+            rec["_meta_city"] = task["city_en"] if task["city_en"] else (rec.get("city") or "unknown")
 
-            aid = rec.get("authorId")
-            if aid is not None:
-                aid_str = str(aid).strip()
-                if aid_str in seller_map:
-                    rec.update(seller_map[aid_str])
+            ad_id = str(rec.get("id", ""))
+            if not ad_id:
+                continue
 
-        groups[(meta["r2_path"], meta["file_key"])][meta["sheet_name"]].extend(records)
+            if ad_id in all_records:
+                all_records[ad_id] = merge_record(all_records[ad_id], rec)
+            else:
+                all_records[ad_id] = rec
 
-        if i < total:
+        if i < total_tasks:
             delay = random.uniform(MIN_LEAF_DELAY, MAX_LEAF_DELAY)
-            print(f"  Waiting {delay:.1f}s before next leaf...")
+            print(f"  Waiting {delay:.1f}s before next task...")
             time.sleep(delay)
 
     print("\n" + "=" * 80)
-    print(f"SCRAPING DONE -- uploading {len(groups)} file(s)")
+    print(f"SCRAPING DONE — unique ads collected: {len(all_records)}")
     print("=" * 80)
 
-    for (r2_path, file_key), sheets in groups.items():
-        upload_group(r2_path, file_key, sheets, dt=dt)
+    if not all_records:
+        print("No ads found. Exiting.")
+        return
 
-    stats_file = f"request_stats_{cat_name_filter or 'all'}.json"
-    stats = tracker.save(stats_file)
-    print(f"\n--- Request Stats -> {stats_file} ---")
-    print(f"Total: {stats['total_requests']} req | {stats['total_req_per_min']} req/min")
-    print(f"By source: {stats['per_source']}")
+    records_list = list(all_records.values())
+    seller_map = fetch_sellers_for_records(records_list)
+    print(f"\nSeller profiles fetched: {len(seller_map)}")
+
+    for rec in records_list:
+        aid = rec.get("authorId")
+        if aid is not None:
+            aid_str = str(aid).strip()
+            if aid_str in seller_map:
+                rec.update(seller_map[aid_str])
+
+    cat_subcat_city = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for rec in records_list:
+        cat = rec.get("_meta_cat", "Unknown")
+        sub = rec.get("_meta_sub_cat", "uncategorized")
+        city = rec.get("_meta_city") or rec.get("city") or "unknown"
+        cat_subcat_city[cat][sub][city].append(rec)
+
+    cat_slug = sanitize_filename(cat_name_filter) if cat_name_filter else "all"
+
+    stats_file = f"request_stats_{cat_slug}.json"
+    tracker.save(stats_file)
+    failed_file = f"failed_tasks_{cat_slug}.json"
+    failed_tracker.save(failed_file)
+
+    total_uploaded = 0
+    for cat_name, subcats in cat_subcat_city.items():
+        print("\n" + "=" * 80)
+        print(f"UPLOADING category: {cat_name}")
+        print("=" * 80)
+        for sub_cat, cities in subcats.items():
+            total_uploaded += upload_subcat_group(cat_name, sub_cat, cities, dt=dt)
+
+    target_subcats = cat_subcat_city.get(cat_name_filter, {}) if cat_name_filter else {}
+    summary = build_summary(cat_name_filter or "all", target_subcats, dt, cat_slug=cat_slug)
+
+    if skip_summary:
+        placeholder_path = f"summary_placeholder_{cat_slug}.json"
+        with open(placeholder_path, "w", encoding="utf-8") as f:
+            json.dump(summary, f, ensure_ascii=False, indent=2)
+        print(f"✅ Summary placeholder saved: {placeholder_path}")
+    else:
+        upload_summary(cat_name_filter or "all", summary, dt)
+
+    print("\n" + "=" * 80)
+    print(f"GLOBAL STATS")
+    stats = tracker.summary()
+    print(f"Total requests : {stats['total_requests']}")
+    print(f"Failed requests: {sum(v['failed'] for v in stats.get('per_source', {}).values())}")
+    print(f"Duration       : {stats.get('total_duration_min', 0):.2f} min")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--categories", default="haraj_all_categories.csv")
-    parser.add_argument("--cat-name", default=None, help="Only process this cat_name (e.g. Cars, Real_Estate)")
-    parser.add_argument("--max-pages", type=int, default=None, help="Test limit: max pages per leaf")
-    parser.add_argument("--limit-rows", type=int, default=None, help="Test limit: only first N leaf rows")
-    parser.add_argument("--upload-target", default="r2", choices=["r2", "drive"],
-                        help="Upload target: 'r2' (Cloudflare R2) or 'drive' (Google Drive)")
+    parser.add_argument("--cat-name", default=None)
+    parser.add_argument("--max-pages", type=int, default=None)
+    parser.add_argument("--limit-tasks", type=int, default=None)
+    parser.add_argument("--modes", default="cat,subcat,subcat_city")
+    parser.add_argument("--upload-target", default="r2", choices=["r2", "drive"])
+    parser.add_argument("--skip-summary", action="store_true",
+                        help="Save summary placeholder instead of uploading")
     args = parser.parse_args()
 
+    modes = tuple(m.strip() for m in args.modes.split(","))
     run(
         categories_csv=args.categories,
         cat_name_filter=args.cat_name,
         max_pages=args.max_pages,
-        limit_rows=args.limit_rows,
+        limit_tasks=args.limit_tasks,
         upload_target=args.upload_target,
+        modes=modes,
+        skip_summary=args.skip_summary,
     )
