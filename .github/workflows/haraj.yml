@@ -34,7 +34,7 @@ jobs:
           # - Projects_and_Investments
           # - Arts
           - Trips
-          - Tourism
+          # - Tourism
           # - Lost_and_Found
           # - More
 

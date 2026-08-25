@@ -252,7 +252,7 @@ def download_images(image_urls: list[str], ad_id: str, r2_path: str, dt: datetim
         try:
             r = requests.get(url, timeout=IMAGE_TIMEOUT)
             if r.status_code != 200:
-                tracker.log_request(source="images", success=False)
+                tracker.log_request(source="images", success=False, details=f"Image HTTP {r.status_code}: {url[:100]}")
                 continue
             img = Image.open(io.BytesIO(r.content)).convert("RGB")
             buf = io.BytesIO()
@@ -265,8 +265,8 @@ def download_images(image_urls: list[str], ad_id: str, r2_path: str, dt: datetim
             tracker.log_request(source="images", success=bool(key))
             if key:
                 r2_paths.append(key)
-        except Exception:
-            tracker.log_request(source="images", success=False)
+        except Exception as e:
+            tracker.log_request(source="images", success=False, details=f"Image exception ({type(e).__name__}): {url[:100]}")
         if idx < len(image_urls):
             time.sleep(random.uniform(MIN_IMAGE_DELAY, MAX_IMAGE_DELAY))
     return r2_paths
@@ -300,7 +300,8 @@ def fetch_page(tag: str, page: int, city: str | None = None, before_update_date:
             response.raise_for_status()
             data = response.json()
             if "errors" in data:
-                tracker.log_request(source="listing_pages", success=False)
+                err_msg = str(data.get("errors", "unknown"))[:200]
+                tracker.log_request(source="listing_pages", success=False, details=f"GraphQL errors: {err_msg}")
                 return [], False, None
             posts_data = data.get("data", {}).get("posts", {})
             items = posts_data.get("items", [])
@@ -308,14 +309,14 @@ def fetch_page(tag: str, page: int, city: str | None = None, before_update_date:
             tracker.log_request(source="listing_pages", success=True)
             last_update_date = items[-1].get("updateDate") if items else None
             return items, has_next, last_update_date
-        except requests.exceptions.RequestException:
-            tracker.log_request(source="listing_pages", success=False)
+        except requests.exceptions.RequestException as e:
+            tracker.log_request(source="listing_pages", success=False, details=f"RequestException ({type(e).__name__}): {str(e)[:150]}")
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_DELAY * attempt)
             else:
                 return [], False, None
-        except Exception:
-            tracker.log_request(source="listing_pages", success=False)
+        except Exception as e:
+            tracker.log_request(source="listing_pages", success=False, details=f"Unexpected ({type(e).__name__}): {str(e)[:150]}")
             return [], False, None
     return [], False, None
 
@@ -400,19 +401,20 @@ def fetch_seller_profile(author_id: str) -> dict | None:
             response.raise_for_status()
             data = response.json()
             if "errors" in data:
-                tracker.log_request(source="seller_profiles", success=False)
+                err_msg = str(data.get("errors", "unknown"))[:200]
+                tracker.log_request(source="seller_profiles", success=False, details=f"GraphQL errors: {err_msg}")
                 return None
             profile = data.get("data", {}).get("profile")
             tracker.log_request(source="seller_profiles", success=bool(profile))
             return profile
-        except requests.exceptions.RequestException:
-            tracker.log_request(source="seller_profiles", success=False)
+        except requests.exceptions.RequestException as e:
+            tracker.log_request(source="seller_profiles", success=False, details=f"RequestException ({type(e).__name__}): {str(e)[:150]}")
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_DELAY * attempt)
             else:
                 return None
-        except Exception:
-            tracker.log_request(source="seller_profiles", success=False)
+        except Exception as e:
+            tracker.log_request(source="seller_profiles", success=False, details=f"Unexpected ({type(e).__name__}): {str(e)[:150]}")
             return None
     return None
 
@@ -811,17 +813,18 @@ def run(
     else:
         upload_summary(cat_name_filter or "all", summary, dt)
 
-        print("\n" + "=" * 80)
+    print("\n" + "=" * 80)
     print(f"GLOBAL STATS")
     stats = tracker.summary()
     print(f"Total requests : {stats['total_requests']}")
-    
-    # ✅ Fix: calculate failed from records directly
-    failed_requests = sum(1 for r in tracker.records if not r.get("success", True))
-    print(f"Failed requests: {failed_requests}")
-    
     print(f"Per source     : {stats.get('per_source', {})}")
     print(f"Duration       : {stats.get('total_duration_min', 0):.2f} min")
+    print("=" * 80)
+
+    print("\n" + "=" * 80)
+    print("FAILED REQUESTS DETAIL")
+    print("=" * 80)
+    tracker.print_failed_summary()
     print("=" * 80)
 
 

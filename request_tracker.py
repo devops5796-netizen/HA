@@ -9,14 +9,67 @@ class RequestTracker:
         self.lock = threading.Lock()
         self.records = []
 
-    def log_request(self, source: str = "", success: bool = True):
+    def log_request(self, source: str = "", success: bool = True, details: str = None):
+        """
+        Log a request attempt.
+
+        Args:
+            source: e.g. 'listing_pages', 'seller_profiles', 'images'
+            success: True/False
+            details: Optional string with error details (URL, status code, exception, etc.)
+        """
         with self.lock:
             self.records.append({
                 "worker": threading.current_thread().name,
                 "source": source,
                 "timestamp": time.time(),
                 "success": success,
+                "details": details or "",
             })
+
+    def get_failed_requests(self) -> list[dict]:
+        """Return all failed request records."""
+        with self.lock:
+            return [r for r in self.records if not r.get("success", True)]
+
+    def print_failed_summary(self, max_per_source: int = 10):
+        """
+        Print a detailed summary of failed requests grouped by source.
+        Shows unique error patterns to avoid spam.
+        """
+        failed = self.get_failed_requests()
+        if not failed:
+            print("  ✅ No failed requests!")
+            return
+
+        print(f"  ❌ Total failed requests: {len(failed)}")
+        print()
+
+        # Group by source
+        by_source = defaultdict(list)
+        for r in failed:
+            by_source[r["source"]].append(r)
+
+        for source, records in sorted(by_source.items(), key=lambda x: -len(x[1])):
+            print(f"  📌 Source: '{source}' — {len(records)} failure(s)")
+
+            # Show unique error details (deduped) with count
+            detail_counts = defaultdict(int)
+            for r in records:
+                detail = r.get("details") or "Unknown error"
+                detail_counts[detail] += 1
+
+            # Print top distinct errors
+            shown = 0
+            for detail, count in sorted(detail_counts.items(), key=lambda x: -x[1]):
+                if shown >= max_per_source:
+                    remaining = len(detail_counts) - max_per_source
+                    print(f"      ... and {remaining} more distinct error pattern(s)")
+                    break
+                prefix = f"      ({count}x)" if count > 1 else "      (1x)"
+                print(f"{prefix} {detail}")
+                shown += 1
+            print()
 
     def summary(self) -> dict:
         with self.lock:
