@@ -1,5 +1,5 @@
 """
-haraj_pipeline_unified.py
+haraj_pipeline.py
 =========================
 Unified scraper supporting 3 modes:
   1. scrape by cat         (top-level tag -> uncategorized)
@@ -815,7 +815,7 @@ def run(
     print(f"GLOBAL STATS")
     stats = tracker.summary()
     print(f"Total requests : {stats['total_requests']}")
-    print(f"Failed requests: {sum(v['failed'] for v in stats.get('per_source', {}).values())}")
+    print(f"Per source     : {stats.get('per_source', {})}")
     print(f"Duration       : {stats.get('total_duration_min', 0):.2f} min")
     print("=" * 80)
 
