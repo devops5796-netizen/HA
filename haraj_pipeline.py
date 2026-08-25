@@ -138,29 +138,6 @@ fragment PostFields on Post {
 # FAILED TASKS TRACKER
 # ============================================================
 
-class FailedTracker:
-    def __init__(self):
-        self.failed_tasks = []
-
-    def log(self, task: dict, error: str):
-        self.failed_tasks.append({
-            "name": f"{task.get('cat_name', 'unknown')}-{task.get('sub_cat', 'unknown')}-{task.get('city_en', 'all')}",
-            "errors": 1,
-            "detail": str(error),
-            "mode": task.get("mode"),
-            "tag": task.get("tag"),
-        })
-
-    def save(self, filepath: str) -> dict:
-        data = {
-            "total_failed": len(self.failed_tasks),
-            "failed_tasks": self.failed_tasks,
-        }
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return data
-
-failed_tracker = FailedTracker()
 
 # ============================================================
 # SELLER CONFIG
@@ -641,24 +618,6 @@ def upload_subcat_group(cat_name: str, sub_cat: str, cities: dict[str, list], dt
 # SUMMARY (DKSA-style)
 # ============================================================
 
-def format_failed_summary(failed_items: list, max_len: int = 400) -> str | None:
-    if not failed_items:
-        return None
-    parts = []
-    for item in failed_items[:12]:
-        name = item.get("name", "?")
-        count = item.get("errors", 0)
-        detail = item.get("detail", "")
-        bit = f"{name}: {count} error(s)"
-        if detail:
-            bit += f" ({detail})"
-        parts.append(bit)
-    text = "; ".join(parts)
-    if len(failed_items) > 12:
-        text += f"; +{len(failed_items) - 12} more"
-    return text[:max_len]
-
-
 def build_summary(cat_name: str, subcat_groups: dict, dt: datetime, cat_slug: str = None) -> dict:
     cat_slug = cat_slug or sanitize_filename(cat_name)
 
@@ -673,42 +632,35 @@ def build_summary(cat_name: str, subcat_groups: dict, dt: datetime, cat_slug: st
             "cities": {city: len(rows) for city, rows in cities.items()},
         })
 
-    stats_file = f"request_stats_{cat_slug}.json"
-    request_metrics = {}
-    requests_duration_sec = None
-    if os.path.exists(stats_file):
-        with open(stats_file, "r", encoding="utf-8") as f:
-            stats_data = json.load(f)
-        duration_min = stats_data.get("total_duration_min", 0)
-        if duration_min:
-            requests_duration_sec = duration_min * 60
-        request_metrics = {
-            "requests_total": stats_data.get("total_requests", 0),
-            "requests_failed": 0,
-            "duration_sec": stats_data.get("total_duration", 0),
-            "requests_per_min": stats_data.get("total_req_per_min", 0),
-            "requests_duration_sec": requests_duration_sec,
-        }
+    # Calculate failed requests from tracker records (each has success: bool)
+    stats = tracker.summary()
+    total_requests = stats.get("total_requests", 0)
+    failed_requests = 0
+    try:
+        with tracker.lock:
+            failed_requests = sum(1 for r in tracker.records if not r.get("success", True))
+    except Exception:
+        pass
 
-    failed_file = f"failed_tasks_{cat_slug}.json"
-    failed_items = []
-    total_failed = 0
-    if os.path.exists(failed_file):
-        with open(failed_file, "r", encoding="utf-8") as f:
-            failed_data = json.load(f)
-        total_failed = failed_data.get("total_failed", 0)
-        request_metrics["requests_failed"] = total_failed
-        failed_items = failed_data.get("failed_tasks", [])
+    duration_min = stats.get("total_duration_min", 0)
+    requests_duration_sec = duration_min * 60 if duration_min else None
 
-    total_requests = request_metrics.get("requests_total", 0)
+    request_metrics = {
+        "requests_total": total_requests,
+        "requests_failed": failed_requests,
+        "duration_sec": stats.get("total_duration", 0),
+        "requests_per_min": stats.get("total_req_per_min", 0),
+        "requests_duration_sec": requests_duration_sec,
+    }
+
     if total_requests > 0:
-        request_metrics["error_rate_pct"] = round(total_failed / total_requests * 100, 2)
+        request_metrics["error_rate_pct"] = round(failed_requests / total_requests * 100, 2)
     else:
         request_metrics["error_rate_pct"] = None
 
     if requests_duration_sec and requests_duration_sec > 0:
         request_metrics["requests_per_min"] = round(
-            request_metrics["requests_total"] / (requests_duration_sec / 60.0), 2
+            total_requests / (requests_duration_sec / 60.0), 2
         )
 
     return {
@@ -726,8 +678,6 @@ def build_summary(cat_name: str, subcat_groups: dict, dt: datetime, cat_slug: st
         "total_listings": total_listings,
         "subcategories": subcategories,
         "request_metrics": request_metrics,
-        "failed_items": failed_items,
-        "failed_items_summary": format_failed_summary(failed_items),
     }
 
 
@@ -783,7 +733,6 @@ def run(
             records = scrape_tag(task["tag"], max_pages=max_pages, city=task["city_ar"])
         except Exception as e:
             print(f"  [ERROR] scrape failed: {e}")
-            failed_tracker.log(task, str(e))
             if i < total_tasks:
                 time.sleep(random.uniform(MIN_LEAF_DELAY, MAX_LEAF_DELAY))
             continue
@@ -842,8 +791,6 @@ def run(
 
     stats_file = f"request_stats_{cat_slug}.json"
     tracker.save(stats_file)
-    failed_file = f"failed_tasks_{cat_slug}.json"
-    failed_tracker.save(failed_file)
 
     total_uploaded = 0
     for cat_name, subcats in cat_subcat_city.items():
