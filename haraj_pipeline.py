@@ -7,7 +7,7 @@ Unified scraper supporting 3 modes:
   3. scrape by sub cat + city (level-1 tag + city filter)
 
 All data merged (deduped by ad id), then regrouped by sub-cat -> city.
-Output per sub-cat: Excel (sheets=cities) + JSON + Summary (DKSA-style).
+Output per sub-cat: Excel (sheets=cities) + JSON + Summary.
 """
 
 import argparse
@@ -838,7 +838,7 @@ def upload_level2_group(r2_folder: str, file_label: str, city: str, level2_map: 
 
 
 # ============================================================
-# SUMMARY (DKSA-style)
+# SUMMARY
 # ============================================================
 
 def build_summary(cat_name: str, subcat_groups: dict, dt: datetime, cat_slug: str = None) -> dict:

@@ -1,0 +1,128 @@
+name: Haraj 2 - Batch 2
+
+on:
+  workflow_run:
+    workflows: ["Haraj 1 - Cars"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  prepare-categories:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Download categories CSV from the previous workflow
+        uses: actions/download-artifact@v4
+        with:
+          name: haraj-categories
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Re-publish categories CSV for the next workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: haraj-categories
+          path: haraj_all_categories.csv
+          if-no-files-found: error
+          retention-days: 3
+
+  scrape-category:
+    runs-on: ubuntu-latest
+    needs: prepare-categories
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        category:
+          - Devices
+          - Real_Estate
+          - Furniture
+          - Services
+          - Fashion
+          - Animals
+          - Jobs
+          - Games
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download categories CSV
+        uses: actions/download-artifact@v4
+        with:
+          name: haraj-categories
+
+      - name: Scrape ${{ matrix.category }}
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: |
+          python haraj_pipeline.py \
+            --categories haraj_all_categories.csv \
+            --cat-name "${{ matrix.category }}" \
+            --skip-summary \
+            --upload-target r2
+
+      - name: Upload summary placeholder
+        uses: actions/upload-artifact@v4
+        with:
+          name: summary-${{ matrix.category }}
+          path: |
+            summary_placeholder_*.json
+          if-no-files-found: ignore
+
+  finalize-summaries:
+    runs-on: ubuntu-latest
+    needs: scrape-category
+    if: ${{ success() }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Get workflow duration
+        id: workflow_duration
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STARTED_AT=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }} --jq .run_started_at)
+          START_TIMESTAMP=$(date -d "$STARTED_AT" +%s)
+          NOW_TIMESTAMP=$(date -u +%s)
+          DURATION_SEC=$((NOW_TIMESTAMP - START_TIMESTAMP))
+          echo "duration_sec=$DURATION_SEC" >> "$GITHUB_OUTPUT"
+          echo "Workflow started at: $STARTED_AT"
+          echo "Workflow duration: ${DURATION_SEC}s"
+
+      - name: Download all summary placeholders
+        uses: actions/download-artifact@v4
+        with:
+          pattern: summary-*
+          merge-multiple: true
+          path: summaries/
+
+      - name: Finalize and upload summaries to R2
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+          WORKFLOW_DURATION: ${{ steps.workflow_duration.outputs.duration_sec }}
+        run: |
+          python finalize_summaries.py --summaries-dir summaries/ --date "$(date -u +%Y-%m-%d)" --workflow haraj
+
+# "Haraj 3 - Batch 3" watches for THIS workflow's completion (on: workflow_run)
+# and starts automatically once every job above succeeds.

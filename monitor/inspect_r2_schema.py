@@ -256,14 +256,14 @@ def upload_config(client, bucket: str, config_key: str) -> None:
 
 def r2_base_prefix(r2_path_raw: str) -> Tuple[str, Optional[str]]:
     """
-    Convert config r2_path like '{r2_bucket}/DKSA/vehicles/cars-for-sale'
+    Convert config r2_path like '{r2_bucket}/Haraj/vehicles/cars-for-sale'
     into (base, category).
 
     The category sits UNDER the date partition:
-        DKSA/year=.../month=.../day=.../vehicles/cars-for-sale/excel/...
+        Haraj/year=.../month=.../day=.../vehicles/cars-for-sale/excel/...
 
     Returns:
-        ('DKSA', 'vehicles/cars-for-sale')
+        ('Haraj', 'vehicles/cars-for-sale')
     """
     path = r2_path_raw.strip()
     if path.startswith("{"):
@@ -289,7 +289,7 @@ def excel_prefixes_for_date(base: str, category: Optional[str], dt: datetime) ->
     Tries zero-padded (month=06/day=09) and unpadded (month=6/day=9) forms.
 
     Structure:
-        DKSA/year=2026/month=08/day=15/vehicles/cars-for-sale/excel/
+        Haraj/year=2026/month=08/day=15/vehicles/cars-for-sale/excel/
     """
     base = base.strip("/")
     date_part = f"year={dt.year}/month={dt.month:02d}/day={dt.day:02d}"
@@ -768,7 +768,7 @@ def should_send_alerts(alerts: List[Dict], alert_cfg: Dict, total_scrapers: int)
 
 def format_alert_text(run_date: str, alerts: List[Dict], passed: int, total: int) -> str:
     lines = [
-        f"DKSA Schema Monitor ALERT — {run_date}",
+        f"Haraj Schema Monitor ALERT — {run_date}",
         f"{passed}/{total} scrapers passed · {len(alerts)} issue(s)",
         "",
     ]
@@ -808,7 +808,7 @@ def format_alert_html(run_date: str, alerts: List[Dict], passed: int, total: int
 
     failed = sorted({a["scraper"] for a in alerts})
     return (
-        f"<h2>DKSA Schema Monitor ALERT — {run_date}</h2>"
+        f"<h2>Haraj Schema Monitor ALERT — {run_date}</h2>"
         f"<p><strong>{passed}/{total}</strong> scrapers passed · "
         f"<strong>{len(alerts)}</strong> issue(s)</p>"
         f"<p>Failed scrapers: {', '.join(failed)}</p>"
@@ -1324,7 +1324,7 @@ def parse_args():
     p.add_argument(
         "--site-slug",
         default=None,
-        help="Override MONITOR_SITE_SLUG (e.g. DKSA) for this run",
+        help="Override MONITOR_SITE_SLUG (e.g. Haraj) for this run",
     )
     return p.parse_args()
 
