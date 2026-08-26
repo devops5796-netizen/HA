@@ -921,6 +921,25 @@ def upload_summary(cat_name: str, summary: dict, dt: datetime):
 # MAIN
 # ============================================================
 
+def apply_shard(df: pd.DataFrame, shard_index: int, shard_count: int) -> pd.DataFrame:
+    """Split a category's rows across `shard_count` parallel jobs by
+    level_1_name, so one huge category (like Cars, ~90+ brands) can be
+    scraped by several jobs in parallel instead of one job timing out at
+    GitHub Actions' 6h job limit.
+
+    Deterministic: sorts the level_1 values first, so every shard job (which
+    only knows its own index) computes the exact same partition independent
+    of row order in the CSV.
+    """
+    if shard_count <= 1:
+        return df
+    NONE_MARKER = "\x00__NONE__"
+    level1_values = sorted(df["level_1_name"].fillna(NONE_MARKER).unique())
+    my_values = {v for i, v in enumerate(level1_values) if i % shard_count == shard_index}
+    mask = df["level_1_name"].fillna(NONE_MARKER).isin(my_values)
+    return df[mask]
+
+
 def run(
     categories_csv: str = "haraj_all_categories.csv",
     cat_name_filter: str | None = None,
@@ -930,6 +949,8 @@ def run(
     upload_target: str = "r2",
     modes: tuple = ("cat", "subcat", "subcat_city"),
     skip_summary: bool = False,
+    shard_index: int = 0,
+    shard_count: int = 1,
 ) -> None:
     set_upload_target(upload_target)
     dt = dt or datetime.now()
@@ -937,6 +958,9 @@ def run(
     df = pd.read_csv(categories_csv, encoding="utf-8-sig")
     if cat_name_filter:
         df = df[df["cat_name"] == cat_name_filter]
+    if shard_count > 1:
+        df = apply_shard(df, shard_index, shard_count)
+        print(f"Shard {shard_index}/{shard_count}: {df['level_1_name'].nunique()} level_1 value(s), {len(df)} row(s)")
 
     subcat_lookup = build_subcat_lookup(df)          # cat -> {tag: level_1_name}
     level2_lookup = build_level2_lookup(df)           # (cat, level_1) -> {tag: level_2_name}
@@ -1033,6 +1057,8 @@ def run(
                 rec.update(seller_map[aid_str])
 
     cat_slug = sanitize_filename(cat_name_filter) if cat_name_filter else "all"
+    if shard_count > 1:
+        cat_slug = f"{cat_slug}_shard{shard_index}"
 
     stats_file = f"request_stats_{cat_slug}.json"
     tracker.save(stats_file)
@@ -1113,6 +1139,10 @@ if __name__ == "__main__":
     parser.add_argument("--upload-target", default="r2", choices=["r2", "drive"])
     parser.add_argument("--skip-summary", action="store_true",
                         help="Save summary placeholder instead of uploading")
+    parser.add_argument("--shard-index", type=int, default=0,
+                        help="This job's shard number (0-based) when splitting one category's level_1 branches across multiple jobs")
+    parser.add_argument("--shard-count", type=int, default=1,
+                        help="Total number of shards for --cat-name (e.g. 6 to split Cars' ~90 brands into 6 parallel jobs)")
     args = parser.parse_args()
 
     modes = tuple(m.strip() for m in args.modes.split(","))
@@ -1124,4 +1154,6 @@ if __name__ == "__main__":
         upload_target=args.upload_target,
         modes=modes,
         skip_summary=args.skip_summary,
+        shard_index=args.shard_index,
+        shard_count=args.shard_count,
     )
