@@ -1,0 +1,18 @@
+folder: haraj
+site_id: haraj-SA
+display_name: haraj Saudi Arabia
+website: haraj.com.sa/en/
+country: Saudi Arabia
+github_username: devops5796-netizen
+repo: HA
+run_place: github
+uses_proxy: false
+r2_prefix: haraj
+scrapers: 120
+schedule: daily
+data_format: xlsx
+workflows:
+  - "Haraj 0 - Discover Categories"
+  - "Haraj 1 - Cars"
+  - "Haraj 2 - Batch 2"
+  - "Haraj 3 - Batch 3"

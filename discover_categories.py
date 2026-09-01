@@ -199,6 +199,14 @@ def discover_all(tags: dict = TAGS, delay_between_categories: tuple[float, float
 
     df = pd.DataFrame(rows).drop_duplicates().reset_index(drop=True)
 
+    # ── Replace "Chalets for sale" → "RestHouse for sale" for Rest-Houses ──
+    mask = (
+        (df["cat_name"] == "Real_Estate")
+        & (df["level_1_tag_name"] == "استراحات للبيع")
+        & (df["level_1_name"] == "Chalets for sale")
+    )
+    df.loc[mask, "level_1_name"] = "RestHouse for sale"
+
     output_file = "haraj_all_categories.csv"
     df.to_csv(output_file, index=False, encoding="utf-8-sig")
 

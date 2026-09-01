@@ -1,0 +1,1882 @@
+meta:
+  website: haraj.com.sa/en/             # All scrapers target this domain
+  country: Saudi Arabia
+  github_username: "devops5796-netizen"
+  repo: HA                             # Single repo confirmed from workspace
+  run_environment: GitHub Actions      # All pipelines run on ubuntu-22.04
+  r2_bucket: "data-collection-dl"                 # Your R2 bucket name (same as CF_R2_BUCKET_NAME secret)
+  r2_prefix: "haraj"                    # Fixed prefix inside the bucket
+
+# ------------------------------------------------------------
+# SCRAPERS — 120 categories across 1 batche
+# ------------------------------------------------------------
+scrapers:
+  - name: Cars_for_sale_rent (Cars)
+    url: https://haraj.com.sa/en/tags/%D8%AD%D8%B1%D8%A7%D8%AC%20%D8%A7%D9%84%D8%B3%D9%8A%D8%A7%D8%B1%D8%A7%D8%AA
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Cars/Cars_for_sale_rent"
+
+  - name: Parts & Accessories (Cars)
+    url: https://haraj.com.sa/en/tags/قطع غيار وملحقات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Cars/Parts & Accessories"
+
+  - name: Trucks and heavy equipment (Cars)
+    url: https://haraj.com.sa/en/tags/شاحنات ومعدات ثقيلة
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Cars/Trucks and heavy equipment"
+
+  - name: Motorcycles (Cars)
+    url: https://haraj.com.sa/en/tags/دبابات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Cars/Motorcycles"
+
+  - name: Phones (Devices)
+    url: https://haraj.com.sa/en/tags/جوالات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Phones"
+
+  - name: Computers (Devices)
+    url: https://haraj.com.sa/en/tags/أجهزة كمبيوتر
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Computers"
+
+  - name: Home & Kitchen Appliances (Devices)
+    url: https://haraj.com.sa/en/tags/اجهزة منزليه
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Home & Kitchen Appliances"
+
+  - name: Accounts and Subscriptions (Devices)
+    url: https://haraj.com.sa/en/tags/حسابات واشتراكات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Accounts and Subscriptions"
+
+  - name: TV & Audio (Devices)
+    url: https://haraj.com.sa/en/tags/تلفزيونات وصوتيات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/TV & Audio"
+
+  - name: Digital Cameras (Devices)
+    url: https://haraj.com.sa/en/tags/كاميرات تصوير
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Digital Cameras"
+
+  - name: Special Numbers (Devices)
+    url: https://haraj.com.sa/en/tags/أرقام مميزة
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Special Numbers"
+
+  - name: Generators (Devices)
+    url: https://haraj.com.sa/en/tags/مواطير ومولدات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Generators"
+
+  - name: Gaming (Devices)
+    url: https://haraj.com.sa/en/tags/ألعاب إلكترونية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Gaming"
+
+  - name: Microsoft (Devices)
+    url: https://haraj.com.sa/en/tags/مايكروسوفت Microsoft
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Microsoft"
+
+  - name: LG (Devices)
+    url: https://haraj.com.sa/en/tags/ال جي LG
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/LG"
+
+  - name: Panasonic (Devices)
+    url: https://haraj.com.sa/en/tags/باناسونيك Panasonic
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Panasonic"
+
+  - name: Hitachi (Devices)
+    url: https://haraj.com.sa/en/tags/هيتاشي Hitachi
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Hitachi"
+
+  - name: Tablets (Devices)
+    url: https://haraj.com.sa/en/tags/أجهزة تابلت
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Tablets"
+
+  - name: Uncategorized Devices (Devices)
+    url: https://haraj.com.sa/en/tags/اجهزة غير مصنفة
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Devices/Uncategorized Devices"
+  
+  - name: Apartments for Rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/شقق للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Apartments for Rent"
+
+  - name: Lands For Sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/اراضي للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Lands For Sale"
+
+  - name: Chalets for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/استراحات للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Chalets for rent"
+
+  - name: Villas for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/فلل للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Villas for sale"
+
+  - name: Apartments for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/شقق للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Apartments for sale"
+  
+  - name: Shops for waiver (Real_Estate)
+    url: https://haraj.com.sa/en/tags/محلات للتقبيل
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Shops for waiver"
+  
+  - name: Rooms for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/غرف للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Rooms for rent"
+  
+  - name: Building for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/عمارة للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Building for sale"
+      
+  - name: Floor Through For Sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/دور للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Floor Through For Sale"
+
+  - name: Shops for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/محلات للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Shops for rent"
+  
+  - name: Villas for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/فلل للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Villas for rent"
+  
+  - name: Floors Through for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/ادوار للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Floors Through for rent"
+  
+  - name: Warehouses for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/مستودعات للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Warehouses for rent"
+
+  - name: Houses for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/بيوت للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Houses for sale"
+  
+  - name: Farms for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/مزارع للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Farms for sale"
+  
+  - name: Offices For Rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/مكاتب للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Offices For Rent"
+
+  - name: Buildings for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/عماره للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Buildings for rent"
+  
+  - name: RestHouse for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/استراحات للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/RestHouse for sale" 
+  
+  - name: Commercial Land For Sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/اراضي تجارية للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Commercial Land For Sale" 
+
+  - name: Farm for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/مزرعة للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Farm for rent" 
+
+  - name: Houses for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/بيوت للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Houses for rent"
+  
+  - name: Chalets for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/شاليهات للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Chalets for sale"
+
+  - name: Warehouse for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/مستودع للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Warehouse for sale"
+
+  - name: Camps for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/مخيمات للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Camps for rent"
+  
+  - name: Compound for sale (Real_Estate)
+    url: https://haraj.com.sa/en/tags/كمباوند للبيع
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Compound for sale"
+
+  - name: Compound for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/كمباوند للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Compound for rent"
+
+  - name: Hall for rent (Real_Estate)
+    url: https://haraj.com.sa/en/tags/قاعة للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Real_Estate/Hall for rent"
+
+  - name: Houseware (Furniture)
+    url: https://haraj.com.sa/en/tags/أدوات منزلية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Furniture/Houseware"
+
+  - name: Sofas and furnishings (Furniture)
+    url: https://haraj.com.sa/en/tags/مجالس ومفروشات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Furniture/Sofas and furnishings"
+
+  - name: tables and chairs (Furniture)
+    url: https://haraj.com.sa/en/tags/طاولات وكراسي
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Furniture/tables and chairs"
+
+  - name: Beds and mattresses (Furniture)
+    url: https://haraj.com.sa/en/tags/أسرة ومراتب
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Furniture/Beds and mattresses"
+
+  - name: Cabinets and cupboards (Furniture)
+    url: https://haraj.com.sa/en/tags/خزائن ودواليب
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Furniture/Cabinets and cupboards"
+
+  - name: Outdoor furniture (Furniture)
+    url: https://haraj.com.sa/en/tags/أثاث خارجي
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Furniture/Outdoor furniture"
+
+  - name: Antiques and decor (Furniture)
+    url: https://haraj.com.sa/en/tags/تحف وديكور
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Furniture/Antiques and decor"
+
+  - name: Office Furniture (Furniture)
+    url: https://haraj.com.sa/en/tags/أثاث مكتبي
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Furniture/Office Furniture"
+
+  - name: Construction Services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات مقاولات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/Construction Services"
+
+  - name: Delivery Services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات التوصيل
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/Delivery Services"
+
+  - name: Agent Services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات تعقيب
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/Agent Services"
+
+  - name: Furniture Transfering Services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات نقل العفش
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/Furniture Transfering Services"
+
+  - name: Cleaning Services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات نظافة
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/Cleaning Services"
+
+  - name: legal services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات قانونية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/legal services"
+
+  - name: Accounting and financial services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات محاسبية ومالية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/Accounting and financial services"
+
+  - name: Buying From Foregin Websites Services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات الشراء من المواقع العالمية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/Buying From Foregin Websites Services"
+    
+  - name: Other services (Services)
+    url: https://haraj.com.sa/en/tags/خدمات اخرى
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Services/Other services"
+
+  - name: Women's fashion (Fashion)
+    url: https://haraj.com.sa/en/tags/ملابس نسائية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Women's fashion"
+
+  - name: Sports Accessories (Fashion)
+    url: https://haraj.com.sa/en/tags/مستلزمات رياضية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Sports Accessories"
+
+  - name: Man Clothes (Fashion)
+    url: https://haraj.com.sa/en/tags/ملابس رجالية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Man Clothes"
+
+  - name: Perfumes and Incense (Fashion)
+    url: https://haraj.com.sa/en/tags/عطورات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Perfumes and Incense"
+
+  - name: Watches (Fashion)
+    url: https://haraj.com.sa/en/tags/ساعات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Watches"
+
+  - name: Health and beauty (Fashion)
+    url: https://haraj.com.sa/en/tags/الصحة والجمال
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Health and beauty"
+
+  - name: Gifts (Fashion)
+    url: https://haraj.com.sa/en/tags/هدايا
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Gifts"
+
+  - name: Kids Clothes (Fashion)
+    url: https://haraj.com.sa/en/tags/ملابس أطفال
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Kids Clothes"
+
+  - name: Glasses (Fashion)
+    url: https://haraj.com.sa/en/tags/نظارات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Glasses"
+
+  - name: Luggage (Fashion)
+    url: https://haraj.com.sa/en/tags/أمتعة سفر
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Fashion/Luggage"
+
+  - name: Parrot (Animals)
+    url: https://haraj.com.sa/en/tags/ببغاء
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Parrot"
+
+  - name: Sheep (Animals)
+    url: https://haraj.com.sa/en/tags/غنم
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Sheep"
+
+  - name: Cats (Animals)
+    url: https://haraj.com.sa/en/tags/قطط
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Cats"
+
+  - name: Chicken (Animals)
+    url: https://haraj.com.sa/en/tags/دجاج
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Chicken"
+
+  - name: Goats (Animals)
+    url: https://haraj.com.sa/en/tags/ماعز
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Goats"
+
+  - name: Camels (Animals)
+    url: https://haraj.com.sa/en/tags/أبل
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Camels"
+
+  - name: Pigeons (Animals)
+    url: https://haraj.com.sa/en/tags/حمام
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Pigeons"
+
+  - name: Horses (Animals)
+    url: https://haraj.com.sa/en/tags/خيل
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Horses"
+
+  - name: Dogs (Animals)
+    url: https://haraj.com.sa/en/tags/كلاب
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Dogs"
+
+  - name: Fish and turtles (Animals)
+    url: https://haraj.com.sa/en/tags/أسماك وسلاحف
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Fish and turtles"
+
+  - name: Rabbits (Animals)
+    url: https://haraj.com.sa/en/tags/ارانب
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Rabbits"
+
+  - name: Duck (Animals)
+    url: https://haraj.com.sa/en/tags/بط
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Duck"
+
+  - name: Hyrax (Animals)
+    url: https://haraj.com.sa/en/tags/وبر
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Hyrax"
+
+  - name: cows (Animals)
+    url: https://haraj.com.sa/en/tags/بقر
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/cows"
+
+  - name: Hamsters (Animals)
+    url: https://haraj.com.sa/en/tags/هامستر
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Hamsters"
+
+  - name: Squirrels (Animals)
+    url: https://haraj.com.sa/en/tags/سناجب
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Animals/Squirrels"
+
+  - name: Administrative functions (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف اداريه
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Administrative functions"
+
+  - name: Home employment jobs (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف عمالة منزلية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Home employment jobs"
+
+  - name: Jobs Restaurants (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف مطاعم
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Jobs Restaurants"
+
+  - name: Costumes and beauty jobs (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف ازياء وتجميل
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Costumes and beauty jobs"
+
+  - name: Industrial Jobs (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف صناعية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Industrial Jobs"
+
+  - name: Educational functions (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف تعليمية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Educational functions"
+  
+  - name: Jobs Medical and Nursing (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف طب وتمريض
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Jobs Medical and Nursing"
+
+  - name: Building and building jobs (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف عمارة وبناء
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Building and building jobs"
+  
+  - name: Security and safety jobs (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف امن وسلامة
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Security and safety jobs"
+  
+  - name: Technical and design functions (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف تقنية وتصميم
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Technical and design functions"
+
+  - name: Agricultural and grazing functions (Jobs)
+    url: https://haraj.com.sa/en/tags/وظائف زراعة ورعي
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Jobs/Agricultural and grazing functions"
+
+  - name: Games
+    url: https://haraj.com.sa/en/tags/%D8%A7%D9%84%D8%B9%D8%A7%D8%A8%20%D9%88%D8%AA%D8%B1%D9%81%D9%8A%D9%87
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Games"
+
+  - name: Private classes (Coaching)
+    url: https://haraj.com.sa/en/tags/دروس خصوصية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Coaching/Private classes"
+
+  - name: Training courses (Coaching)
+    url: https://haraj.com.sa/en/tags/دورات تدريبية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Coaching/Training courses"
+
+  - name: Sports Exercices (Coaching)
+    url: https://haraj.com.sa/en/tags/تدريب رياضي
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Coaching/Sports Exercices"
+
+  - name: Leading (Coaching)
+    url: https://haraj.com.sa/en/tags/تعليم قيادة
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Coaching/Leading"
+
+  - name: Electronic Games Training (Coaching)
+    url: https://haraj.com.sa/en/tags/تدريب العاب الكترونية
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Coaching/Electronic Games Training"
+
+  - name: Education shares and currencies (Coaching)
+    url: https://haraj.com.sa/en/tags/تعليم اسهم وعملات
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Coaching/Education shares and currencies"
+
+  - name: Food
+    url: https://haraj.com.sa/en/tags/%D8%A7%D8%B7%D8%B9%D9%85%D8%A9%20%D9%88%D9%85%D8%B4%D8%B1%D9%88%D8%A8%D8%A7%D8%AA
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Food"
+
+  - name: Events
+    url: https://haraj.com.sa/en/tags/%D8%AD%D9%81%D9%84%D8%A7%D8%AA%20%D9%88%D9%85%D9%86%D8%A7%D8%B3%D8%A8%D8%A7%D8%AA
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Events"
+
+  - name: Coding
+    url: https://haraj.com.sa/en/tags/%D8%A8%D8%B1%D9%85%D8%AC%D8%A9%20%D9%88%D8%AA%D8%B5%D8%A7%D9%85%D9%8A%D9%85
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Coding"
+
+  - name: Gardens
+    url: https://haraj.com.sa/en/tags/%D8%B2%D8%B1%D8%A7%D8%B9%D8%A9%20%D9%88%D8%AD%D8%AF%D8%A7%D8%A6%D9%82
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Gardens"
+
+  - name: Rarities
+    url: https://haraj.com.sa/en/tags/%D9%86%D9%88%D8%A7%D8%AF%D8%B1%20%D9%88%20%D8%AA%D8%B1%D8%A7%D8%AB%D9%8A%D8%A7%D8%AA
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Rarities"
+
+  - name: Projects_and_Investments
+    url: https://haraj.com.sa/en/tags/%D9%85%D8%B4%D8%A7%D8%B1%D9%8A%D8%B9%20%D9%88%D8%A7%D8%B3%D8%AA%D8%AB%D9%85%D8%A7%D8%B1%D8%A7%D8%AA
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Projects_and_Investments"
+
+  - name: Arts
+    url: https://haraj.com.sa/en/tags/%D9%85%D9%83%D8%AA%D8%A8%D8%A9%20%D9%88%D9%81%D9%86%D9%88%D9%86
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Arts"
+
+  - name: Trips
+    url: https://haraj.com.sa/en/tags/%D8%B5%D9%8A%D8%AF%20%D9%88%D8%B1%D8%AD%D9%84%D8%A7%D8%AA
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Trips"
+
+  - name: Chalets (Tourism)
+    url: https://haraj.com.sa/en/tags/شاليهات للايجار
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Tourism/Chalets"
+
+  - name: roommate (Tourism)
+    url: https://haraj.com.sa/en/tags/شريك سكن
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Tourism/roommate"
+
+  - name: Serviced Apartments (Tourism)
+    url: https://haraj.com.sa/en/tags/شقق مخدومة
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Tourism/Serviced Apartments"
+
+  - name: Lost_and_Found
+    url: https://haraj.com.sa/en/tags/%D9%85%D9%81%D9%82%D9%88%D8%AF%D8%A7%D8%AA
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/Lost_and_Found"
+
+  - name: More
+    url: https://haraj.com.sa/en/tags/%D9%82%D8%B3%D9%85%20%D8%BA%D9%8A%D8%B1%20%D9%85%D8%B5%D9%86%D9%81
+    batch: "Haraj"
+    workflow_file: haraj.yml
+    r2_path: "{r2_bucket}/haraj/More"
+
+  
+# ------------------------------------------------------------
+# PIPELINE CHAIN (auto-detected from workflow triggers)
+# Batch Haraj (daily at 00:00 UTC)
+# ------------------------------------------------------------
+pipeline_chain:
+  - batch: "Haraj 0 - Discover Categories"
+    trigger: "cron: '0 0 * * *'"
+    triggers_next: "Haraj 1 - Cars"
+  - batch: "Haraj 1 - Cars"
+    trigger: "on_completion: Haraj 0 - Discover Categories"
+    triggers_next: "Haraj 2 - Batch 2"
+  - batch: "Haraj 2 - Batch 2"
+    trigger: "on_completion: Haraj 1 - Cars"
+    triggers_next: "Haraj 3 - Batch 3"
+  - batch: "Haraj 3 - Batch 3"
+    trigger: "workflow_dispatch (triggered by Haraj 2 - Batch 2)"
+    triggers_next: null
+
+# ============================================================
+# EXCEL SCHEMA — Per-scraper .xlsx output validation
+# One entry per scraper; each describes the sheets, required
+# column headers, expected row range, and min file size.
+# ============================================================
+
+# ── REUSABLE COLUMN ANCHORS ─────────────────────────────────
+
+_col_standard_listing: &col_standard_listing
+  - id
+
+# ── PER-SCRAPER SCHEMAS ──────────────────────────────────────
+excel_schema:
+
+  # ── BATCH Haraj ─────────────────────────────────────────────────
+
+  - scraper: Cars_for_sale_rent
+    excel_file_pattern: "{brand_name}.xlsx"
+    sheets:
+      - name: "{car_type}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Parts & Accessories (Cars)
+    excel_file_pattern: "{brand_name}.xlsx"
+    sheets:
+      - name: "{car_type}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Trucks and heavy equipment (Cars)
+    excel_file_pattern: "{brand_name}.xlsx"
+    sheets:
+      - name: "{car_type}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Motorcycles (Cars)
+    excel_file_pattern: "{brand_name}.xlsx"
+    sheets:
+      - name: "{car_type}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Phones (Devices)
+    excel_file_pattern: "{brand_name}.xlsx"
+    sheets:
+      - name: "{car_type}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Computers (Devices)
+    excel_file_pattern: "{brand_name}.xlsx"
+    sheets:
+      - name: "{car_type}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Home & Kitchen Appliances (Devices)
+    excel_file_pattern: "{brand_name}.xlsx"
+    sheets:
+      - name: "{car_type}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Accounts and Subscriptions (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: TV & Audio (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Digital Cameras (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Special Numbers (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Generators (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Gaming (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Microsoft (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: LG (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Panasonic (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Hitachi (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Tablets (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Uncategorized Devices (Devices)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Apartments for Rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Lands For Sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Chalets for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Villas for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Apartments for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Shops for waiver (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Rooms for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Building for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Floor Through For Sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Shops for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Villas for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Floors Through for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Warehouses for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Houses for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Farms for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Offices For Rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Buildings for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: RestHouse for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Commercial Land For Sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Farm for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Houses for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Chalets for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Warehouse for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Camps for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Compound for sale (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Compound for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Hall for rent (Real_Estate)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Houseware (Furniture)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Sofas and furnishings (Furniture)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: tables and chairs (Furniture)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Beds and mattresses (Furniture)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Cabinets and cupboards (Furniture)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Outdoor furniture (Furniture)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Antiques and decor (Furniture)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Office Furniture (Furniture)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Construction Services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+    
+  - scraper: Delivery Services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Agent Services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Furniture Transfering Services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Cleaning Services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: legal services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Accounting and financial services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Buying From Foregin Websites Services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Other services (Services)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Women's fashion (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Sports Accessories (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Man Clothes (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Perfumes and Incense (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Watches (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Health and beauty (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Gifts (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Kids Clothes (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Glasses (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Luggage (Fashion)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Parrot (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Sheep (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Cats (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Chicken (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Goats (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Camels (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Pigeons (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Horses (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Dogs (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Fish and turtles (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Rabbits (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Duck (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Hyrax (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: cows (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Hamsters (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Squirrels (Animals)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Administrative functions (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Home employment jobs (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Jobs Restaurants (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Costumes and beauty jobs (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Industrial Jobs (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Educational functions (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Jobs Medical and Nursing (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Building and building jobs (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Security and safety jobs (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Technical and design functions (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Agricultural and grazing functions (Jobs)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Games
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Private classes (Coaching)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Training courses (Coaching)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Sports Exercices (Coaching)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Leading (Coaching)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Electronic Games Training (Coaching)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Education shares and currencies (Coaching)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Food
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Events
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Coding
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Gardens
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Rarities
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+  
+  - scraper: Projects_and_Investments
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Arts
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Trips
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Chalets (Tourism)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+    
+  - scraper: roommate (Tourism)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Serviced Apartments (Tourism)
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: Lost_and_Found
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+  - scraper: More
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category}"
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
+    min_file_size_kb: 5
+
+# ============================================================
+# ALERT THRESHS — schema validation + historical trend alarms
+# Trend multipliers calibrated against monitor_stats.yml
+# (observed 2026-06-07 → 2026-06-13, 7 days, 23 scrapers)
+# ============================================================
+alert_thresholds:
+  enabled: true
+
+  # Fire webhook when ANY scraper fails schema / trend / missing-files check
+  alert_on_any_failure: true
+  # To re-enable "No Excel files" alerts later,
+  # just flip this to false in the YAML — no code changes needed.
+  skip_no_files_alert: true
+
+  # Historical trend checks (requires monitor_stats.yml in R2)
+  trend:
+    min_observed_days: 7
+    min_row_pct_of_hist_min: 5       # alert if rows < 5% of historical min per sheet
+    max_row_pct_of_hist_max: 1000      # alert if rows > 1000% of historical max per sheet
+    min_file_size_pct_of_hist_min: 10 # alert if file < 10% of historical min per scraper
+
+  # Run-level gate — skip webhook if failure rate is below this (0 = always alert)
+  max_scraper_fail_rate_pct: 0
+
+  # Per-scraper observed file-size floors (KB) from real stats × 50%, floored at schema min
+  # Used as a fast check even before trend history exists
+
+  observed_min_file_size_kb: 
+    Cars_for_sale_rent (Cars): 5
+    Parts & Accessories (Cars): 5
+    Trucks and heavy equipment (Cars): 5
+    Motorcycles (Cars): 5
+    Phones (Devices): 5
+    Computers (Devices): 5
+    Home & Kitchen Appliances (Devices): 5
+    Accounts and Subscriptions (Devices): 5
+    TV & Audio (Devices): 5
+    Digital Cameras (Devices): 5
+    Special Numbers (Devices): 5
+    Generators (Devices): 5
+    Gaming (Devices): 5
+    Microsoft (Devices): 5
+    LG (Devices): 5
+    Panasonic (Devices): 5
+    Hitachi (Devices): 5
+    Tablets (Devices): 5
+    Uncategorized Devices (Devices): 5
+    Apartments for Rent (Real_Estate): 5
+    Lands For Sale (Real_Estate): 5
+    Chalets for rent (Real_Estate): 5
+    Villas for sale (Real_Estate): 5
+    Apartments for sale (Real_Estate): 5
+    Shops for waiver (Real_Estate): 5
+    Rooms for rent (Real_Estate): 5
+    Building for sale (Real_Estate): 5
+    Floor Through For Sale (Real_Estate): 5
+    Shops for rent (Real_Estate): 5
+    Villas for rent (Real_Estate): 5
+    Floors Through for rent (Real_Estate): 5
+    Warehouses for rent (Real_Estate): 5
+    Houses for sale (Real_Estate): 5
+    Farms for sale (Real_Estate): 5
+    Offices For Rent (Real_Estate): 5
+    Buildings for rent (Real_Estate): 5
+    RestHouse for sale (Real_Estate): 5
+    Commercial Land For Sale (Real_Estate): 5
+    Farm for rent (Real_Estate): 5
+    Houses for rent (Real_Estate): 5
+    Chalets for sale (Real_Estate): 5
+    Warehouse for sale (Real_Estate): 5
+    Camps for rent (Real_Estate): 5
+    Compound for sale (Real_Estate): 5
+    Compound for rent (Real_Estate): 5
+    Hall for rent (Real_Estate): 5
+    Houseware (Furniture): 5
+    Sofas and furnishings (Furniture): 5
+    tables and chairs (Furniture): 5
+    Beds and mattresses (Furniture): 5
+    Cabinets and cupboards (Furniture): 5
+    Outdoor furniture (Furniture): 5
+    Antiques and decor (Furniture): 5
+    Office Furniture (Furniture): 5
+    Construction Services (Services): 5
+    Delivery Services (Services): 5
+    Agent Services (Services): 5
+    Furniture Transfering Services (Services): 5
+    Cleaning Services (Services): 5
+    legal services (Services): 5
+    Accounting and financial services (Services): 5
+    Buying From Foregin Websites Services (Services): 5
+    Other services (Services): 5
+    Women's fashion (Fashion): 5
+    Sports Accessories (Fashion): 5
+    Man Clothes (Fashion): 5
+    Perfumes and Incense (Fashion): 5
+    Watches (Fashion): 5
+    Health and beauty (Fashion): 5
+    Gifts (Fashion): 5
+    Kids Clothes (Fashion): 5
+    Glasses (Fashion): 5
+    Luggage (Fashion): 5
+    Parrot (Animals): 5
+    Sheep (Animals): 5
+    Cats (Animals): 5
+    Chicken (Animals): 5
+    Goats (Animals): 5
+    Camels (Animals): 5
+    Pigeons (Animals): 5
+    Horses (Animals): 5
+    Dogs (Animals): 5
+    Fish and turtles (Animals): 5
+    Rabbits (Animals): 5
+    Duck (Animals): 5
+    Hyrax (Animals): 5
+    cows (Animals): 5
+    Hamsters (Animals): 5
+    Squirrels (Animals): 5
+    Administrative functions (Jobs): 5
+    Home employment jobs (Jobs): 5
+    Jobs Restaurants (Jobs): 5
+    Costumes and beauty jobs (Jobs): 5
+    Industrial Jobs (Jobs): 5
+    Educational functions (Jobs): 5
+    Jobs Medical and Nursing (Jobs): 5
+    Building and building jobs (Jobs): 5
+    Security and safety jobs (Jobs): 5
+    Technical and design functions (Jobs): 5
+    Agricultural and grazing functions (Jobs): 5
+    Games: 5
+    Private classes (Coaching): 5
+    Training courses (Coaching): 5
+    Sports Exercices (Coaching): 5
+    Leading (Coaching): 5
+    Electronic Games Training (Coaching): 5
+    Education shares and currencies (Coaching): 5
+    Food: 5
+    Events: 5
+    Coding: 5
+    Gardens: 5
+    Rarities: 5
+    Projects_and_Investments: 5
+    Arts: 5
+    Trips: 5
+    Chalets (Tourism): 5
+    roommate (Tourism): 5
+    Serviced Apartments (Tourism): 5
+    Lost_and_Found: 5
+    More: 5
+
+  channels:
+    webhook:
+      enabled: true
+      # URL from env MONITOR_ALERT_WEBHOOK_URL (GitHub secret)
+      # Import monitor/n8n-email-alert-workflow.json for email via n8n
