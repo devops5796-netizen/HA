@@ -718,7 +718,11 @@ COLUMNS_TO_DROP = [
     "_meta_cat",
     "_meta_sub_cat",
     "_meta_city",
+    "bodyHTML",  #empty columns
 ]
+# "postType",  # all is AD
+# "status"     # all is True
+
 
 
 def strip_unwanted_columns(record: dict) -> dict:
