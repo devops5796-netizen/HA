@@ -723,19 +723,35 @@ COLUMNS_TO_DROP = [
 # "postType",  # all is AD
 # "status"     # all is True
 
-
+SELLER_COLUMNS = [
+    "seller_handler",
+    "seller_type",
+    "seller_description",
+    "seller_updatedAt",
+    "seller_locations",
+    "seller_contacts",
+    "seller_verifications",
+    "seller_pages",
+    "phone",
+]
 
 def strip_unwanted_columns(record: dict) -> dict:
     """Remove internal metadata + unwanted columns before upload."""
     result = dict(record)
+
     for col in COLUMNS_TO_DROP:
         result.pop(col, None)
+
     # Also drop any flattened seller_contact_* columns (safety net)
     for key in list(result.keys()):
         if key.startswith("seller_contact_"):
             result.pop(key, None)
-    return result
 
+    # Make sure all seller columns always exist
+    for col in SELLER_COLUMNS:
+        result.setdefault(col, None)
+
+    return result
 
 # ============================================================
 # UPLOAD: one file with CITY sheets
