@@ -617,6 +617,10 @@ CARS_CAT_NAME = "Cars"
 CARS_NON_BRAND_LEVEL1 = {"Parts & Accessories", "Trucks and heavy equipment", "Motorcycles"}
 CARS_BRAND_BUCKET = "Cars_for_sale_rent"
 
+# Categories for which ad images get downloaded and uploaded to R2.
+# Everything else skips image upload entirely (text/data only).
+IMAGE_UPLOAD_CATEGORIES = {"Coaching"}
+
 
 def resolve_grouping(cat_name: str, level_1_name: str | None, has_level2_set: set) -> tuple[str, str, str]:
     """Return (r2_folder, file_label, granularity) for a record.
@@ -1081,6 +1085,25 @@ def run(
             aid_str = str(aid).strip()
             if aid_str in seller_map:
                 rec.update(seller_map[aid_str])
+
+    # --------------------------------------------------------------
+    # IMAGE UPLOAD -- only for categories listed in IMAGE_UPLOAD_CATEGORIES
+    # (currently just "Coaching"). Every other category stays data-only,
+    # exactly like before.
+    # --------------------------------------------------------------
+    images_to_upload = [r for r in records_list if r.get("_meta_cat") in IMAGE_UPLOAD_CATEGORIES]
+    if images_to_upload:
+        print("\n" + "=" * 80)
+        print(f"IMAGE UPLOAD -- {len(images_to_upload)} ad(s) in {sorted(IMAGE_UPLOAD_CATEGORIES)}")
+        print("=" * 80)
+        for i, rec in enumerate(images_to_upload, 1):
+            image_urls = rec.get("imagesList") or []
+            if not image_urls:
+                continue
+            folder, _, _ = resolve_grouping(rec.get("_meta_cat"), rec.get("_meta_sub_cat"), has_level2_set)
+            ad_id = str(rec.get("id", ""))
+            print(f"  [{i}/{len(images_to_upload)}] ad {ad_id}: {len(image_urls)} image(s) -> {folder}")
+            rec["imagesR2"] = download_images(image_urls, ad_id, folder, dt=dt)
 
     cat_slug = sanitize_filename(cat_name_filter) if cat_name_filter else "all"
     if shard_count > 1:

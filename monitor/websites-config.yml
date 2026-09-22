@@ -803,6 +803,52 @@ _col_standard_listing: &col_standard_listing
   - seller_pages
   - phone
 
+_col_standard_images_listing: &col_standard_images_listing_listing
+  - id
+  - title
+  - postDate
+  - updateDate
+  - authorUsername
+  - authorId
+  - URL
+  - bodyTEXT
+  - thumbURL
+  - hasImage
+  - hasVideo
+  - city
+  - geoCity
+  - geoNeighborhood
+  - geoHash
+  - tags
+  - imagesList
+  - commentEnabled
+  - commentStatus
+  - isPromoted
+  - commentCount
+  - upRank
+  - downRank
+  - status
+  - postType
+  - generalInfo
+  - price
+  - realEstateInfo
+  - carInfo
+  - tagsFilters
+  - jobsInfo
+  - postNotesList
+  - BuyButton
+  - _meta_level2
+  - seller_handler
+  - seller_type
+  - seller_description
+  - seller_updatedAt
+  - seller_locations
+  - seller_contacts
+  - seller_verifications
+  - seller_pages
+  - phone
+  - imagesR2
+
 # ── PER-SCRAPER SCHEMAS ──────────────────────────────────────
 excel_schema:
 
@@ -1620,7 +1666,7 @@ excel_schema:
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category}"
-        required_columns: *col_standard_listing
+        required_columns: *col_standard_images_listing_listing
         row_count_range: [1, 650]
     min_file_size_kb: 5
 
@@ -1628,7 +1674,7 @@ excel_schema:
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category}"
-        required_columns: *col_standard_listing
+        required_columns: *col_standard_images_listing_listing
         row_count_range: [1, 650]
     min_file_size_kb: 5
 
@@ -1636,7 +1682,7 @@ excel_schema:
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category}"
-        required_columns: *col_standard_listing
+        required_columns: *col_standard_images_listing_listing
         row_count_range: [1, 650]
     min_file_size_kb: 5
 
@@ -1644,7 +1690,7 @@ excel_schema:
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category}"
-        required_columns: *col_standard_listing
+        required_columns: *col_standard_images_listing_listing
         row_count_range: [1, 650]
     min_file_size_kb: 5
 
@@ -1652,7 +1698,7 @@ excel_schema:
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category}"
-        required_columns: *col_standard_listing
+        required_columns: *col_standard_images_listing_listing
         row_count_range: [1, 650]
     min_file_size_kb: 5
 
@@ -1660,7 +1706,7 @@ excel_schema:
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category}"
-        required_columns: *col_standard_listing
+        required_columns: *col_standard_images_listing_listing
         row_count_range: [1, 650]
     min_file_size_kb: 5
   
