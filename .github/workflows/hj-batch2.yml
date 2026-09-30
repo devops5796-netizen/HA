@@ -40,9 +40,6 @@ jobs:
           - Furniture
           - Services
           - Fashion
-          - Animals
-          - Jobs
-          - Games
 
     steps:
       - uses: actions/checkout@v4
@@ -123,6 +120,3 @@ jobs:
           WORKFLOW_DURATION: ${{ steps.workflow_duration.outputs.duration_sec }}
         run: |
           python finalize_summaries.py --summaries-dir summaries/ --date "$(date -u +%Y-%m-%d)" --workflow haraj
-
-# "Haraj 3 - Batch 3" watches for THIS workflow's completion (on: workflow_run)
-# and starts automatically once every job above succeeds.
