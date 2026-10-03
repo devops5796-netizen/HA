@@ -48,8 +48,8 @@ MAX_RETRIES = 3
 RETRY_DELAY = 10
 IMAGE_TIMEOUT = 20
 
-Riyadh_now = datetime.now(ZoneInfo("Asia/Riyadh"))
-TARGET_DATE = (Riyadh_now.date() - timedelta(days=1))
+utc_now = datetime.now(timezone.utc)
+TARGET_DATE = (utc_now.date() - timedelta(days=1))
 
 CITIES = {
     "Riyadh": "الرياض",
@@ -362,7 +362,6 @@ def convert_timestamp_columns(df: pd.DataFrame) -> pd.DataFrame:
                     pd.to_numeric(df[col], errors="coerce"),
                     unit="s", errors="coerce", utc=True
                 )
-                .dt.tz_convert("Asia/Riyadh")
                 .dt.strftime("%Y-%m-%d %H:%M:%S")
             )
     return df
@@ -376,8 +375,7 @@ def filter_yesterday_hits(hits):
             continue
         try:
             dt_utc = datetime.fromtimestamp(int(timestamp_value), tz=timezone.utc)
-            dt_Riyadh = dt_utc.astimezone(ZoneInfo("Asia/Riyadh"))
-            if dt_Riyadh.date() == TARGET_DATE:
+            if dt_utc.date() == TARGET_DATE:
                 filtered.append(hit)
         except (ValueError, TypeError):
             pass
