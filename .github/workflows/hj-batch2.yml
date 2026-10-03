@@ -38,8 +38,6 @@ jobs:
           - Devices
           - Real_Estate
           - Furniture
-          - Services
-          - Fashion
 
     steps:
       - uses: actions/checkout@v4
