@@ -67,6 +67,7 @@ from r2_file_counter import (
     count_site_r2_inventory,
 )
 from github_workflows import build_scraper_run_meta, merge_registry_site
+from website_ads_counter import build_website_published_ads_report
 from monitor_r2 import (
     build_r2_client,
     load_registry_from_r2,
@@ -1520,6 +1521,26 @@ def main():
         "scrapers":  {},
         "alerts":    [],
     }
+    website_ads_config = config.get("website_published_ads")
+    if website_ads_config is not None:
+        website_ads_report = build_website_published_ads_report(
+            website_ads_config, listing_date_str
+        )
+        full_report.update(website_ads_report)
+        if website_ads_report["website_published_ads_status"] == "error":
+            log.error(
+                "Website-published ads count failed for %s (%s): %s",
+                listing_date_str,
+                website_ads_report["website_published_ads_source"],
+                website_ads_report.get("website_published_ads_error"),
+            )
+        else:
+            log.info(
+                "Website-published ads for %s: %s (%s)",
+                listing_date_str,
+                website_ads_report["website_published_ads"],
+                website_ads_report["website_published_ads_source"],
+            )
 
     scrapers_cfg = config.get("scrapers", [])
     log.info(f"Processing {len(scrapers_cfg)} scrapers …")

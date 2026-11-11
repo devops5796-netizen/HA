@@ -7,6 +7,16 @@ meta:
   r2_bucket: "data-collection-dl"                 # Your R2 bucket name (same as CF_R2_BUCKET_NAME secret)
   r2_prefix: "haraj"                    # Fixed prefix inside the bucket
 
+website_published_ads:
+  source: haraj_public_graphql
+  scope: sitewide
+  endpoint: https://graphql.haraj.com.sa/
+  client_id: "mVaYf0dJ-lh8g-XZhw-s1Xg-ssMJAOwsMTf7v3"
+  language: en
+  page_size: 100
+  max_pages: 500
+  delay_seconds: 0.25
+
 # ------------------------------------------------------------
 # SCRAPERS — 120 categories across 3 batche
 # ------------------------------------------------------------
